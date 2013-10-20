@@ -1,7 +1,7 @@
 
 ; Program - dmxpack.s
 ;
-; Written by Michael Bengtson  26-Dec-2012
+; Written by Michael Bengtson  20-Oct-2013
 ;
 ; This is the controller for the 4 channel DMX pack.  This controls 4 light
 ; circuits when connected to the DMX bus.
