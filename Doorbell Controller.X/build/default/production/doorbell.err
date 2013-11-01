@@ -1,95 +1,53 @@
-Message[302] /Users/Michael/Development/Doorbell Controller/Doorbell Controller.X/doorbell.asm 196 : Register in operand not in bank 0.  Ensure that bank bits are correct.
-Message[302] /Users/Michael/Development/Doorbell Controller/Doorbell Controller.X/doorbell.asm 200 : Register in operand not in bank 0.  Ensure that bank bits are correct.
-Message[302] /Users/Michael/Development/Doorbell Controller/Doorbell Controller.X/doorbell.asm 204 : Register in operand not in bank 0.  Ensure that bank bits are correct.
-Message[302] /Users/Michael/Development/Doorbell Controller/Doorbell Controller.X/doorbell.asm 207 : Register in operand not in bank 0.  Ensure that bank bits are correct.
-Message[302] /Users/Michael/Development/Doorbell Controller/Doorbell Controller.X/doorbell.asm 210 : Register in operand not in bank 0.  Ensure that bank bits are correct.
-Message[302] /Users/Michael/Development/Doorbell Controller/Doorbell Controller.X/doorbell.asm 261 : Register in operand not in bank 0.  Ensure that bank bits are correct.
-Message[302] /Users/Michael/Development/Doorbell Controller/Doorbell Controller.X/doorbell.asm 262 : Register in operand not in bank 0.  Ensure that bank bits are correct.
-Message[302] /Users/Michael/Development/Doorbell Controller/Doorbell Controller.X/doorbell.asm 265 : Register in operand not in bank 0.  Ensure that bank bits are correct.
-Message[302] /Users/Michael/Development/Doorbell Controller/Doorbell Controller.X/doorbell.asm 266 : Register in operand not in bank 0.  Ensure that bank bits are correct.
-Message[302] /Users/Michael/Development/Doorbell Controller/Doorbell Controller.X/doorbell.asm 269 : Register in operand not in bank 0.  Ensure that bank bits are correct.
-Message[302] /Users/Michael/Development/Doorbell Controller/Doorbell Controller.X/doorbell.asm 276 : Register in operand not in bank 0.  Ensure that bank bits are correct.
-Message[302] /Users/Michael/Development/Doorbell Controller/Doorbell Controller.X/doorbell.asm 277 : Register in operand not in bank 0.  Ensure that bank bits are correct.
-Message[302] /Users/Michael/Development/Doorbell Controller/Doorbell Controller.X/doorbell.asm 280 : Register in operand not in bank 0.  Ensure that bank bits are correct.
-Message[302] /Users/Michael/Development/Doorbell Controller/Doorbell Controller.X/doorbell.asm 286 : Register in operand not in bank 0.  Ensure that bank bits are correct.
-Message[302] /Users/Michael/Development/Doorbell Controller/Doorbell Controller.X/doorbell.asm 287 : Register in operand not in bank 0.  Ensure that bank bits are correct.
-Message[302] /Users/Michael/Development/Doorbell Controller/Doorbell Controller.X/doorbell.asm 290 : Register in operand not in bank 0.  Ensure that bank bits are correct.
-Message[302] /Users/Michael/Development/Doorbell Controller/Doorbell Controller.X/doorbell.asm 294 : Register in operand not in bank 0.  Ensure that bank bits are correct.
-Message[302] /Users/Michael/Development/Doorbell Controller/Doorbell Controller.X/doorbell.asm 295 : Register in operand not in bank 0.  Ensure that bank bits are correct.
-Message[302] /Users/Michael/Development/Doorbell Controller/Doorbell Controller.X/doorbell.asm 298 : Register in operand not in bank 0.  Ensure that bank bits are correct.
-Message[302] /Users/Michael/Development/Doorbell Controller/Doorbell Controller.X/doorbell.asm 302 : Register in operand not in bank 0.  Ensure that bank bits are correct.
-Message[302] /Users/Michael/Development/Doorbell Controller/Doorbell Controller.X/doorbell.asm 303 : Register in operand not in bank 0.  Ensure that bank bits are correct.
-Message[302] /Users/Michael/Development/Doorbell Controller/Doorbell Controller.X/doorbell.asm 306 : Register in operand not in bank 0.  Ensure that bank bits are correct.
-Message[302] /Users/Michael/Development/Doorbell Controller/Doorbell Controller.X/doorbell.asm 310 : Register in operand not in bank 0.  Ensure that bank bits are correct.
-Message[302] /Users/Michael/Development/Doorbell Controller/Doorbell Controller.X/doorbell.asm 311 : Register in operand not in bank 0.  Ensure that bank bits are correct.
-Message[302] /Users/Michael/Development/Doorbell Controller/Doorbell Controller.X/doorbell.asm 314 : Register in operand not in bank 0.  Ensure that bank bits are correct.
-Message[302] /Users/Michael/Development/Doorbell Controller/Doorbell Controller.X/doorbell.asm 318 : Register in operand not in bank 0.  Ensure that bank bits are correct.
-Message[302] /Users/Michael/Development/Doorbell Controller/Doorbell Controller.X/doorbell.asm 319 : Register in operand not in bank 0.  Ensure that bank bits are correct.
-Message[302] /Users/Michael/Development/Doorbell Controller/Doorbell Controller.X/doorbell.asm 322 : Register in operand not in bank 0.  Ensure that bank bits are correct.
-Message[302] /Users/Michael/Development/Doorbell Controller/Doorbell Controller.X/doorbell.asm 326 : Register in operand not in bank 0.  Ensure that bank bits are correct.
-Message[302] /Users/Michael/Development/Doorbell Controller/Doorbell Controller.X/doorbell.asm 327 : Register in operand not in bank 0.  Ensure that bank bits are correct.
-Message[302] /Users/Michael/Development/Doorbell Controller/Doorbell Controller.X/doorbell.asm 330 : Register in operand not in bank 0.  Ensure that bank bits are correct.
-Message[302] /Users/Michael/Development/Doorbell Controller/Doorbell Controller.X/doorbell.asm 376 : Register in operand not in bank 0.  Ensure that bank bits are correct.
-Message[302] /Users/Michael/Development/Doorbell Controller/Doorbell Controller.X/doorbell.asm 377 : Register in operand not in bank 0.  Ensure that bank bits are correct.
-Message[302] /Users/Michael/Development/Doorbell Controller/Doorbell Controller.X/doorbell.asm 378 : Register in operand not in bank 0.  Ensure that bank bits are correct.
-Message[302] /Users/Michael/Development/Doorbell Controller/Doorbell Controller.X/doorbell.asm 379 : Register in operand not in bank 0.  Ensure that bank bits are correct.
-Message[302] /Users/Michael/Development/Doorbell Controller/Doorbell Controller.X/doorbell.asm 380 : Register in operand not in bank 0.  Ensure that bank bits are correct.
-Message[302] /Users/Michael/Development/Doorbell Controller/Doorbell Controller.X/doorbell.asm 384 : Register in operand not in bank 0.  Ensure that bank bits are correct.
-Message[302] /Users/Michael/Development/Doorbell Controller/Doorbell Controller.X/doorbell.asm 385 : Register in operand not in bank 0.  Ensure that bank bits are correct.
-Message[302] /Users/Michael/Development/Doorbell Controller/Doorbell Controller.X/doorbell.asm 386 : Register in operand not in bank 0.  Ensure that bank bits are correct.
-Message[302] /Users/Michael/Development/Doorbell Controller/Doorbell Controller.X/doorbell.asm 387 : Register in operand not in bank 0.  Ensure that bank bits are correct.
-Message[302] /Users/Michael/Development/Doorbell Controller/Doorbell Controller.X/doorbell.asm 388 : Register in operand not in bank 0.  Ensure that bank bits are correct.
-Message[302] /Users/Michael/Development/Doorbell Controller/Doorbell Controller.X/doorbell.asm 389 : Register in operand not in bank 0.  Ensure that bank bits are correct.
-Message[302] /Users/Michael/Development/Doorbell Controller/Doorbell Controller.X/doorbell.asm 391 : Register in operand not in bank 0.  Ensure that bank bits are correct.
-Message[302] /Users/Michael/Development/Doorbell Controller/Doorbell Controller.X/doorbell.asm 392 : Register in operand not in bank 0.  Ensure that bank bits are correct.
-Message[302] /Users/Michael/Development/Doorbell Controller/Doorbell Controller.X/doorbell.asm 393 : Register in operand not in bank 0.  Ensure that bank bits are correct.
-Message[302] /Users/Michael/Development/Doorbell Controller/Doorbell Controller.X/doorbell.asm 394 : Register in operand not in bank 0.  Ensure that bank bits are correct.
-Message[302] /Users/Michael/Development/Doorbell Controller/Doorbell Controller.X/doorbell.asm 395 : Register in operand not in bank 0.  Ensure that bank bits are correct.
-Message[302] /Users/Michael/Development/Doorbell Controller/Doorbell Controller.X/doorbell.asm 396 : Register in operand not in bank 0.  Ensure that bank bits are correct.
-Message[302] /Users/Michael/Development/Doorbell Controller/Doorbell Controller.X/doorbell.asm 397 : Register in operand not in bank 0.  Ensure that bank bits are correct.
+Message[302] /Users/Michael/Development/Doorbell Controller/Doorbell Controller.X/doorbell.asm 231 : Register in operand not in bank 0.  Ensure that bank bits are correct.
+Message[302] /Users/Michael/Development/Doorbell Controller/Doorbell Controller.X/doorbell.asm 235 : Register in operand not in bank 0.  Ensure that bank bits are correct.
+Message[302] /Users/Michael/Development/Doorbell Controller/Doorbell Controller.X/doorbell.asm 239 : Register in operand not in bank 0.  Ensure that bank bits are correct.
+Message[302] /Users/Michael/Development/Doorbell Controller/Doorbell Controller.X/doorbell.asm 242 : Register in operand not in bank 0.  Ensure that bank bits are correct.
+Message[302] /Users/Michael/Development/Doorbell Controller/Doorbell Controller.X/doorbell.asm 245 : Register in operand not in bank 0.  Ensure that bank bits are correct.
+Message[302] /Users/Michael/Development/Doorbell Controller/Doorbell Controller.X/doorbell.asm 339 : Register in operand not in bank 0.  Ensure that bank bits are correct.
+Message[302] /Users/Michael/Development/Doorbell Controller/Doorbell Controller.X/doorbell.asm 340 : Register in operand not in bank 0.  Ensure that bank bits are correct.
+Message[302] /Users/Michael/Development/Doorbell Controller/Doorbell Controller.X/doorbell.asm 341 : Register in operand not in bank 0.  Ensure that bank bits are correct.
+Message[302] /Users/Michael/Development/Doorbell Controller/Doorbell Controller.X/doorbell.asm 342 : Register in operand not in bank 0.  Ensure that bank bits are correct.
+Message[302] /Users/Michael/Development/Doorbell Controller/Doorbell Controller.X/doorbell.asm 354 : Register in operand not in bank 0.  Ensure that bank bits are correct.
+Message[302] /Users/Michael/Development/Doorbell Controller/Doorbell Controller.X/doorbell.asm 356 : Register in operand not in bank 0.  Ensure that bank bits are correct.
+Message[302] /Users/Michael/Development/Doorbell Controller/Doorbell Controller.X/doorbell.asm 360 : Register in operand not in bank 0.  Ensure that bank bits are correct.
+Message[302] /Users/Michael/Development/Doorbell Controller/Doorbell Controller.X/doorbell.asm 363 : Register in operand not in bank 0.  Ensure that bank bits are correct.
+Message[302] /Users/Michael/Development/Doorbell Controller/Doorbell Controller.X/doorbell.asm 366 : Register in operand not in bank 0.  Ensure that bank bits are correct.
+Message[302] /Users/Michael/Development/Doorbell Controller/Doorbell Controller.X/doorbell.asm 369 : Register in operand not in bank 0.  Ensure that bank bits are correct.
+Message[302] /Users/Michael/Development/Doorbell Controller/Doorbell Controller.X/doorbell.asm 370 : Register in operand not in bank 0.  Ensure that bank bits are correct.
+Message[302] /Users/Michael/Development/Doorbell Controller/Doorbell Controller.X/doorbell.asm 374 : Register in operand not in bank 0.  Ensure that bank bits are correct.
 Message[302] /Users/Michael/Development/Doorbell Controller/Doorbell Controller.X/doorbell.asm 401 : Register in operand not in bank 0.  Ensure that bank bits are correct.
-Message[302] /Users/Michael/Development/Doorbell Controller/Doorbell Controller.X/doorbell.asm 405 : Register in operand not in bank 0.  Ensure that bank bits are correct.
-Message[302] /Users/Michael/Development/Doorbell Controller/Doorbell Controller.X/doorbell.asm 411 : Register in operand not in bank 0.  Ensure that bank bits are correct.
-Message[302] /Users/Michael/Development/Doorbell Controller/Doorbell Controller.X/doorbell.asm 415 : Register in operand not in bank 0.  Ensure that bank bits are correct.
-Message[302] /Users/Michael/Development/Doorbell Controller/Doorbell Controller.X/doorbell.asm 484 : Register in operand not in bank 0.  Ensure that bank bits are correct.
-Message[302] /Users/Michael/Development/Doorbell Controller/Doorbell Controller.X/doorbell.asm 485 : Register in operand not in bank 0.  Ensure that bank bits are correct.
-Message[302] /Users/Michael/Development/Doorbell Controller/Doorbell Controller.X/doorbell.asm 486 : Register in operand not in bank 0.  Ensure that bank bits are correct.
-Message[302] /Users/Michael/Development/Doorbell Controller/Doorbell Controller.X/doorbell.asm 487 : Register in operand not in bank 0.  Ensure that bank bits are correct.
-Message[302] /Users/Michael/Development/Doorbell Controller/Doorbell Controller.X/doorbell.asm 488 : Register in operand not in bank 0.  Ensure that bank bits are correct.
-Message[302] /Users/Michael/Development/Doorbell Controller/Doorbell Controller.X/doorbell.asm 490 : Register in operand not in bank 0.  Ensure that bank bits are correct.
-Message[302] /Users/Michael/Development/Doorbell Controller/Doorbell Controller.X/doorbell.asm 493 : Register in operand not in bank 0.  Ensure that bank bits are correct.
-Message[302] /Users/Michael/Development/Doorbell Controller/Doorbell Controller.X/doorbell.asm 494 : Register in operand not in bank 0.  Ensure that bank bits are correct.
-Message[302] /Users/Michael/Development/Doorbell Controller/Doorbell Controller.X/doorbell.asm 497 : Register in operand not in bank 0.  Ensure that bank bits are correct.
-Message[302] /Users/Michael/Development/Doorbell Controller/Doorbell Controller.X/doorbell.asm 506 : Register in operand not in bank 0.  Ensure that bank bits are correct.
-Message[302] /Users/Michael/Development/Doorbell Controller/Doorbell Controller.X/doorbell.asm 541 : Register in operand not in bank 0.  Ensure that bank bits are correct.
-Message[302] /Users/Michael/Development/Doorbell Controller/Doorbell Controller.X/doorbell.asm 561 : Register in operand not in bank 0.  Ensure that bank bits are correct.
-Message[302] /Users/Michael/Development/Doorbell Controller/Doorbell Controller.X/doorbell.asm 580 : Register in operand not in bank 0.  Ensure that bank bits are correct.
-Message[302] /Users/Michael/Development/Doorbell Controller/Doorbell Controller.X/doorbell.asm 584 : Register in operand not in bank 0.  Ensure that bank bits are correct.
-Message[302] /Users/Michael/Development/Doorbell Controller/Doorbell Controller.X/doorbell.asm 589 : Register in operand not in bank 0.  Ensure that bank bits are correct.
-Message[302] /Users/Michael/Development/Doorbell Controller/Doorbell Controller.X/doorbell.asm 633 : Register in operand not in bank 0.  Ensure that bank bits are correct.
-Message[302] /Users/Michael/Development/Doorbell Controller/Doorbell Controller.X/doorbell.asm 637 : Register in operand not in bank 0.  Ensure that bank bits are correct.
-Message[305] /Users/Michael/Development/Doorbell Controller/Doorbell Controller.X/doorbell.asm 660 : Using default destination of 1 (file).
-Message[305] /Users/Michael/Development/Doorbell Controller/Doorbell Controller.X/doorbell.asm 679 : Using default destination of 1 (file).
-Message[305] /Users/Michael/Development/Doorbell Controller/Doorbell Controller.X/doorbell.asm 698 : Using default destination of 1 (file).
-Message[305] /Users/Michael/Development/Doorbell Controller/Doorbell Controller.X/doorbell.asm 717 : Using default destination of 1 (file).
-Message[305] /Users/Michael/Development/Doorbell Controller/Doorbell Controller.X/doorbell.asm 723 : Using default destination of 1 (file).
-Message[305] /Users/Michael/Development/Doorbell Controller/Doorbell Controller.X/doorbell.asm 725 : Using default destination of 1 (file).
-Message[302] /Users/Michael/Development/Doorbell Controller/Doorbell Controller.X/doorbell.asm 825 : Register in operand not in bank 0.  Ensure that bank bits are correct.
-Message[302] /Users/Michael/Development/Doorbell Controller/Doorbell Controller.X/doorbell.asm 831 : Register in operand not in bank 0.  Ensure that bank bits are correct.
-Message[305] /Users/Michael/Development/Doorbell Controller/Doorbell Controller.X/doorbell.asm 874 : Using default destination of 1 (file).
-Message[305] /Users/Michael/Development/Doorbell Controller/Doorbell Controller.X/doorbell.asm 878 : Using default destination of 1 (file).
-Message[302] /Users/Michael/Development/Doorbell Controller/Doorbell Controller.X/doorbell.asm 920 : Register in operand not in bank 0.  Ensure that bank bits are correct.
-Message[302] /Users/Michael/Development/Doorbell Controller/Doorbell Controller.X/doorbell.asm 921 : Register in operand not in bank 0.  Ensure that bank bits are correct.
-Message[302] /Users/Michael/Development/Doorbell Controller/Doorbell Controller.X/doorbell.asm 922 : Register in operand not in bank 0.  Ensure that bank bits are correct.
-Message[302] /Users/Michael/Development/Doorbell Controller/Doorbell Controller.X/doorbell.asm 923 : Register in operand not in bank 0.  Ensure that bank bits are correct.
-Message[302] /Users/Michael/Development/Doorbell Controller/Doorbell Controller.X/doorbell.asm 936 : Register in operand not in bank 0.  Ensure that bank bits are correct.
-Message[302] /Users/Michael/Development/Doorbell Controller/Doorbell Controller.X/doorbell.asm 937 : Register in operand not in bank 0.  Ensure that bank bits are correct.
-Message[302] /Users/Michael/Development/Doorbell Controller/Doorbell Controller.X/doorbell.asm 938 : Register in operand not in bank 0.  Ensure that bank bits are correct.
-Message[302] /Users/Michael/Development/Doorbell Controller/Doorbell Controller.X/doorbell.asm 939 : Register in operand not in bank 0.  Ensure that bank bits are correct.
-Message[302] /Users/Michael/Development/Doorbell Controller/Doorbell Controller.X/doorbell.asm 1049 : Register in operand not in bank 0.  Ensure that bank bits are correct.
-Message[302] /Users/Michael/Development/Doorbell Controller/Doorbell Controller.X/doorbell.asm 1069 : Register in operand not in bank 0.  Ensure that bank bits are correct.
-Message[302] /Users/Michael/Development/Doorbell Controller/Doorbell Controller.X/doorbell.asm 1070 : Register in operand not in bank 0.  Ensure that bank bits are correct.
-Message[302] /Users/Michael/Development/Doorbell Controller/Doorbell Controller.X/doorbell.asm 1071 : Register in operand not in bank 0.  Ensure that bank bits are correct.
-Message[302] /Users/Michael/Development/Doorbell Controller/Doorbell Controller.X/doorbell.asm 1085 : Register in operand not in bank 0.  Ensure that bank bits are correct.
-Message[302] /Users/Michael/Development/Doorbell Controller/Doorbell Controller.X/doorbell.asm 1094 : Register in operand not in bank 0.  Ensure that bank bits are correct.
-Message[302] /Users/Michael/Development/Doorbell Controller/Doorbell Controller.X/doorbell.asm 1099 : Register in operand not in bank 0.  Ensure that bank bits are correct.
+Message[305] /Users/Michael/Development/Doorbell Controller/Doorbell Controller.X/doorbell.asm 409 : Using default destination of 1 (file).
+Message[305] /Users/Michael/Development/Doorbell Controller/Doorbell Controller.X/doorbell.asm 412 : Using default destination of 1 (file).
+Message[305] /Users/Michael/Development/Doorbell Controller/Doorbell Controller.X/doorbell.asm 414 : Using default destination of 1 (file).
+Message[302] /Users/Michael/Development/Doorbell Controller/Doorbell Controller.X/doorbell.asm 425 : Register in operand not in bank 0.  Ensure that bank bits are correct.
+Message[305] /Users/Michael/Development/Doorbell Controller/Doorbell Controller.X/doorbell.asm 457 : Using default destination of 1 (file).
+Message[302] /Users/Michael/Development/Doorbell Controller/Doorbell Controller.X/doorbell.asm 462 : Register in operand not in bank 0.  Ensure that bank bits are correct.
+Message[305] /Users/Michael/Development/Doorbell Controller/Doorbell Controller.X/doorbell.asm 465 : Using default destination of 1 (file).
+Message[305] /Users/Michael/Development/Doorbell Controller/Doorbell Controller.X/doorbell.asm 467 : Using default destination of 1 (file).
+Message[305] /Users/Michael/Development/Doorbell Controller/Doorbell Controller.X/doorbell.asm 492 : Using default destination of 1 (file).
+Message[305] /Users/Michael/Development/Doorbell Controller/Doorbell Controller.X/doorbell.asm 495 : Using default destination of 1 (file).
+Message[305] /Users/Michael/Development/Doorbell Controller/Doorbell Controller.X/doorbell.asm 497 : Using default destination of 1 (file).
+Message[302] /Users/Michael/Development/Doorbell Controller/Doorbell Controller.X/doorbell.asm 545 : Register in operand not in bank 0.  Ensure that bank bits are correct.
+Message[302] /Users/Michael/Development/Doorbell Controller/Doorbell Controller.X/doorbell.asm 546 : Register in operand not in bank 0.  Ensure that bank bits are correct.
+Message[302] /Users/Michael/Development/Doorbell Controller/Doorbell Controller.X/doorbell.asm 554 : Register in operand not in bank 0.  Ensure that bank bits are correct.
+Message[305] /Users/Michael/Development/Doorbell Controller/Doorbell Controller.X/doorbell.asm 603 : Using default destination of 1 (file).
+Message[305] /Users/Michael/Development/Doorbell Controller/Doorbell Controller.X/doorbell.asm 609 : Using default destination of 1 (file).
+Message[305] /Users/Michael/Development/Doorbell Controller/Doorbell Controller.X/doorbell.asm 611 : Using default destination of 1 (file).
+Message[305] /Users/Michael/Development/Doorbell Controller/Doorbell Controller.X/doorbell.asm 665 : Using default destination of 1 (file).
+Message[305] /Users/Michael/Development/Doorbell Controller/Doorbell Controller.X/doorbell.asm 676 : Using default destination of 1 (file).
+Message[305] /Users/Michael/Development/Doorbell Controller/Doorbell Controller.X/doorbell.asm 745 : Using default destination of 1 (file).
+Message[305] /Users/Michael/Development/Doorbell Controller/Doorbell Controller.X/doorbell.asm 748 : Using default destination of 1 (file).
+Message[305] /Users/Michael/Development/Doorbell Controller/Doorbell Controller.X/doorbell.asm 750 : Using default destination of 1 (file).
+Message[302] /Users/Michael/Development/Doorbell Controller/Doorbell Controller.X/doorbell.asm 812 : Register in operand not in bank 0.  Ensure that bank bits are correct.
+Message[302] /Users/Michael/Development/Doorbell Controller/Doorbell Controller.X/doorbell.asm 822 : Register in operand not in bank 0.  Ensure that bank bits are correct.
+Message[305] /Users/Michael/Development/Doorbell Controller/Doorbell Controller.X/doorbell.asm 860 : Using default destination of 1 (file).
+Message[305] /Users/Michael/Development/Doorbell Controller/Doorbell Controller.X/doorbell.asm 862 : Using default destination of 1 (file).
+Message[302] /Users/Michael/Development/Doorbell Controller/Doorbell Controller.X/doorbell.asm 908 : Register in operand not in bank 0.  Ensure that bank bits are correct.
+Message[302] /Users/Michael/Development/Doorbell Controller/Doorbell Controller.X/doorbell.asm 917 : Register in operand not in bank 0.  Ensure that bank bits are correct.
+Message[305] /Users/Michael/Development/Doorbell Controller/Doorbell Controller.X/doorbell.asm 956 : Using default destination of 1 (file).
+Message[305] /Users/Michael/Development/Doorbell Controller/Doorbell Controller.X/doorbell.asm 962 : Using default destination of 1 (file).
+Message[305] /Users/Michael/Development/Doorbell Controller/Doorbell Controller.X/doorbell.asm 963 : Using default destination of 1 (file).
+Message[305] /Users/Michael/Development/Doorbell Controller/Doorbell Controller.X/doorbell.asm 993 : Using default destination of 1 (file).
+Message[305] /Users/Michael/Development/Doorbell Controller/Doorbell Controller.X/doorbell.asm 994 : Using default destination of 1 (file).
+Message[305] /Users/Michael/Development/Doorbell Controller/Doorbell Controller.X/doorbell.asm 997 : Using default destination of 1 (file).
+Message[305] /Users/Michael/Development/Doorbell Controller/Doorbell Controller.X/doorbell.asm 1003 : Using default destination of 1 (file).

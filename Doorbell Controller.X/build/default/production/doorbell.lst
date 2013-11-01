@@ -1,86 +1,127 @@
-MPASM  5.47  /USERS/MICHAEL/DEVELOPMENT/DOORB   10-20-2013  15:22:49         PAGE  1
+MPASM  5.47  /USERS/MICHAEL/DEVELOPMENT/DOORB   10-30-2013  19:59:15         PAGE  1
 
 
 LOC  OBJECT CODE     LINE SOURCE TEXT
   VALUE
 
                       00001 
-                      00002 ; Program - dmxpack.s
+                      00002 ; Program - dmxpack.asm
                       00003 ;
-                      00004 ; Written by Michael Bengtson  20-Oct-2013
+                      00004 ; Written by Michael Bengtson  21-Oct-2013
                       00005 ;
-                      00006 ; This is the controller for the 4 channel DMX pack.  This controls 4 light
-                      00007 ; circuits when connected to the DMX bus.
-                      00008 ;
-                      00009 ; Processor is PIC16F1508.  This receives the DMX stream, watches the zero-
-                      00010 ; crossing detector and feeds the Pulse With Modulation engines.
+                      00006 ; This is the code for the controller that handles the doorbells, the Seeburg
+                      00007 ; jukebox remote and any alerts.  The system consists of an Ethernet to RS-232
+                      00008 ; converter, power supply for the system, power supply for the jukebox remote,
+                      00009 ; two MP3 player boards and the processor with associated electronics.
+                      00010 ; See the schematic for details.
                       00011 ;
-                      00012 ; Pin out for the chip is as follow:
-                      00013 ;
-                      00014 ;       Pin 01 : Vdd : +3.3V
-                      00015 ;       Pin 02 : RA5 : Clock In  20Mhz Resonator
-                      00016 ;       Pin 03 : RA4 : Clock Out 20Mhz Resonator
-                      00017 ;       Pin 04 : RA3 : ICSP - Program
-                      00018 ;       Pin 05 : RC5 : PWM 1 : Driver for channel 0
-                      00019 ;       Pin 06 : RC4 : Debug Pin - DMX Receive UART
-                      00020 ;       Pin 07 : RC3 : PWM 2 : Driver for channel 1
-                      00021 ;       Pin 08 : RC6 : Debug Pin - Zero Cross
-                      00022 ;       Pin 09 : RC7 : Debug Pin - Timer 1
-                      00023 ;       Pin 10 : RB7
-                      00024 ;       Pin 11 : RB6
-                      00025 ;       Pin 12 : RB5 : DMX Receive
-                      00026 ;       Pin 13 : RB4
-                      00027 ;       Pin 14 : RC2 : C12IN2 - Zero Crossing Input
-                      00028 ;       Pin 15 : RC1 : PWM 4 : Driver for channel 3
-                      00029 ;       Pin 16 : RC0
-                      00030 ;       Pin 17 : RA2 : PWM 3 : Driver for channel 2
-                      00031 ;       Pin 18 : RA1 : ICSP - Clock
-                      00032 ;       Pin 19 : RA0 : ICSP - Data
-                      00033 ;       Pin 20 : Vss : 0.0V
-                      00034 
-                      00035 ; 11-Jul-2013 : Turned on the watch dog timer through config bits.  Using the
-                      00036 ;               default 2 second timeout value.  Timer is cleared each time a
-                      00037 ;               DMX packet is received.  If not received, the timer will reset
-                      00038 ;               the board.  Was seeing deaf boards that were still holding a
-                      00039 ;               level.  Processor was triggering channels at the last level
-                      00040 ;               it received but it was not getting new levels on the DMX
-                      00041 ;               channel.  Watch dog is a weak fix.  Need to find out why the
-                      00042 ;               boards are going deaf.
-                      00043 
-                      00044 ; 16-Jul-2013 : This is a version of the code that will allow all the boards
-                      00045 ;               to be programmed with the same code.  Once the boards have had
-                      00046 ;               DMX channels assigned, new software can be downloaded without
-                      00047 ;               setting the channel map again.
-                      00048 
-                      00049 ; 16-Jul-2013 : If a channel is set to 0, it previous was triggering the triac
-                      00050 ;               for a very small period of time.  Because of zero cross issues
-                      00051 ;               it would sometimes trigger a full cycle, flashing like a
-                      00052 ;               firefly.  Now, if the level is 0, the triac is never turned on.
-                      00053 
-MPASM  5.47  /USERS/MICHAEL/DEVELOPMENT/DOORB   10-20-2013  15:22:49         PAGE  2
+                      00012 ; Operation - The doorbells are connected into the system via RJ-45 connectors.
+                      00013 ; Each doorbell is supplied with +5.0v for the led ring in the button.  The
+                      00014 ; buttons are each tied to an input on the processor.  The button press can be
+                      00015 ; detected and then an RS-232 command sent to the Mac Mini via the Ethernet to
+                      00016 ; RS-232 converter.  The Mac Mini then determines what MP3 to play and sends
+                      00017 ; a command back to the controller that will initiate an MP3 on the 'alert'
+                      00018 ; MP3 player. The Seeburg has a single input line that provides a serial
+                      00019 ; signal indicating the selection.  Each transition on this line is timestamped
+                      00020 ; and sent to the Mac Mini via the RS-232/Ethernet connection.  The serial
+                      00021 ; signal is decoded in the Mac.  The Mac then determines what has been selected
+                      00022 ; and sends a command back to the controller which gets routed to the 'Seeburg'
+                      00023 ; MP3 player. The Mac can also use other information and send alerts to the
+                      00024 ; 'alert' MP3 player.  These could be weather information, clock chimes, etc.
+                      00025 
+                      00026 ; Here is the protocol that is used between the Mac Mini and the Controller.
+                      00027 ;
+                      00028 ;   Doorbell Alerts In:
+                      00029 ;
+                      00030 ;       01:00:TSL:TSH   :   Front Doorbell Pressed
+                      00031 ;       01:01:TSL:TSH   :   Front Doorbell Released
+                      00032 ;       01:02:TSL:TSH   :   Side Doorbell Pressed
+                      00033 ;       01:03:TSL:TSH   :   Side Doorbell Released
+                      00034 ;       01:04:TSL:TSH   :   Guest Doorbell Pressed
+                      00035 ;       01:05:TSL:TSH   :   Guest Doorbell Released
+                      00036 ;
+                      00037 ;   Seeburg Selection In:
+                      00038 ;
+                      00039 ;       01:06:TSL:TSH   :   Seeburg Contact Closed
+                      00040 ;       01:07:TSL:TSH   :   Seeburg Contact Open
+                      00041 ;
+                      00042 ;   MP3 Commands:
+                      00043 ;
+                      00044 ;       02:01:nn        ;   Plays Alert Track nn (0-255)
+                      00045 ;       02:02:nn        :   Plays Seeburg Track nn (0-255)
+                      00046 ;
+                      00047 ;   Seeburg tracks are letter * 10 + number.
+                      00048 ;       A0 = Track 0
+                      00049 ;       A1 = Track 1
+                      00050 ;       B0 = Track 10
+                      00051 ;       V0 = Track 190
+                      00052 ;       V9 = Track 199
+                      00053 ;
+MPASM  5.47  /USERS/MICHAEL/DEVELOPMENT/DOORB   10-30-2013  19:59:15         PAGE  2
 
 
 LOC  OBJECT CODE     LINE SOURCE TEXT
   VALUE
 
-                      00054 ; 16-Jul-2013 : If a channel is set to 255 (full on), it would only get a single
-                      00055 ;               strobe at the start of the cycle.  Now, a full on level will
-                      00056 ;               get strobes for the entire cycle.  Note that the trigger is still
-                      00057 ;               turned off in each level position, before being turned back on.
+                      00054 ;   Doorbell tracks are as follows:
+                      00055 ;       Front = Track 0
+                      00056 ;       Side = Track 1
+                      00057 ;       Guest = Track 2
                       00058 
-                      00059 ; This is a prototype program to manage an illuminated encoder to be used in
-                      00060 ; the Tack Sa Mycket home we are building.  This is only a prototype since
-                      00061 ; the chip used here will likely be different than the chip in the final
-                      00062 ; keypad controller.
-                      00063 ;
-                      00064 ; A timer is set to trigger every 1ms.  This will read the encoder bits and
-                      00065 ; check the led pwm status.  LEDs can be set from 0-15 for their intensity.
-                      00066 ;
-                      00067 ; Need a little state machine to determine the direction of the encoder.
-                      00068 
-                      00069         list    p=16f1508
-                      00070         include <p16F1508.inc>
+                      00059 ;
+                      00060 ; Processor is PIC16F1508.  
+                      00061 ; Pin out for the chip is as follow:
+                      00062 ;
+                      00063 ;       Pin 01 : Vdd : +5.0V
+                      00064 ;       Pin 02 : RA5 : Clock In  20Mhz Oscillator
+                      00065 ;       Pin 03 : RA4 : NC
+                      00066 ;       Pin 04 : RA3 : ICSP - Program
+                      00067 ;       Pin 05 : RC5 : NC
+                      00068 ;       Pin 06 : RC4 : DEBUG - UART
+                      00069 ;       Pin 07 : RC3 : Seeburg Select
+                      00070 ;       Pin 08 : RC6 : DEBUG - BUTTONS
+                      00071 ;       Pin 09 : RC7 : DEBUG - TIMER
+                      00072 ;       Pin 10 : RB7 : TX - To Ethernet Converter
+                      00073 ;       Pin 11 : RB6 : Alert MP3 TX
+                      00074 ;       Pin 12 : RB5 : RX - From Ethernet Converter
+                      00075 ;       Pin 13 : RB4 : Seeburg MP3 TX
+                      00076 ;       Pin 14 : RC2 : Doorbell Guest
+                      00077 ;       Pin 15 : RC1 : Doorbell Side
+                      00078 ;       Pin 16 : RC0 : Doorbell Front
+                      00079 ;       Pin 17 : RA2 : DEBUG - BAT
+                      00080 ;       Pin 18 : RA1 : ICSP - Clock
+                      00081 ;       Pin 19 : RA0 : ICSP - Data
+                      00082 ;       Pin 20 : Vss : 0.0V - GND
+                      00083 
+                      00084 ; 21-Oct-2013 : Starting to write the code using the DMX controller code as
+                      00085 ;               base.
+                      00086 
+                      00087 ; NEXT STEPS :
+                      00088 ;
+                      00089 ;   * Check configuration bits.
+                      00090 ;   * Get programming working and check for timer pulses with oscilloscope.
+                      00091 ;   * Design Mac / Controller communication.
+                      00092 ;   * Get PIC UART Sending At 1200 Baud
+                      00093 ;   * Decoding button presses.
+                      00094 ;   * Write UART Send Routine With Circular Queue 16 Bytes Is Good
+                      00095 ;   * Write Java code to receive from Ethernet/RS-232 converter.
+                      00096 ;   * Get doorbell buttons to send commands to Mac.
+                      00097 ;   * Write Java state machines to decode in bound data.
+                      00098 ;   * Get PIC UART Receiving At 2400 Baud
+                      00099 ;   * Write 2400 Bit Banged UART Code ... TX Only
+                      00100 ;   Write state machine to take commands and send to MP3 channels.
+                      00101 ;   Clean up RAM storage assignments.
+                      00102 ;   ...
+                      00103 
+                      00104         list    p=16f1508
+                      00105         include <p16F1508.inc>
                       00001         LIST
+MPASM  5.47  /USERS/MICHAEL/DEVELOPMENT/DOORB   10-30-2013  19:59:15         PAGE  3
+
+
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
                       00002 
                       00003 ;==========================================================================
                       00004 ;  MPASM PIC16F1508 processor include
@@ -89,1265 +130,1244 @@ LOC  OBJECT CODE     LINE SOURCE TEXT
                       00007 ;==========================================================================
                       00008 
                       01952         LIST
-                      00071 
-                      00072 ; Configuration bits are listed here.  There are two configuration words.
-                      00073 ;
-                      00074 ; CONFIG1 : 0x00e2  : 0x0fa with watch dog timer.
-                      00075 ;
-                      00076 ;       Bit 13    :   0 : Disable Fail Safe Clock Monitor
-                      00077 ;       Bit 12    :   0 : Disable Internal/External Switch Over
-                      00078 ;
-                      00079 ;       Bit 11    :   0 : Enable CLKOUT on the CLKOUT Pin
-                      00080 ;       Bit 10-09 :  00 : Disable Brown-Out Detection
-                      00081 ;       Bit 08    :   0 : Unimplemented  Reads as "1"
-                      00082 
-                      00083 ;       Bit 07    :   1 : Disable Code Protection
-                      00084 ;       Bit 06    :   1 : MCLR is Reset Signal
-                      00085 ;       Bit 05    :   1 : Disable Power Up Timer
-                      00086 ;       Bit 04-03 :  00 : Disable Watch Dog Timer
-                      00087 ;       Bit 04-03 :  11 : Enable Watch Dog Timer.
-                      00088 ;       Bit 02-00 : 010 : HS Oscillator On OSC1 and OSC2
-                      00089 ;
-                      00090 ; CONFIG2 : 0x0803
-                      00091 ;
-                      00092 ;       Bit 13    :   0 : High Voltage Programming on MCLR
-                      00093 ;       Bit 12    :   0 : In-Circuit Debugger Enabled
-                      00094 
-                      00095 ;       Bit 11    :   1 : Disable Low Power Brown Out Reset
-                      00096 ;       Bit 10    :   0 : Brown Out High Trip Point Selected (Not Used)
-                      00097 ;       Bit 09    :   0 : Disable Stack Over/Underflow Reset
-MPASM  5.47  /USERS/MICHAEL/DEVELOPMENT/DOORB   10-20-2013  15:22:49         PAGE  3
-
-
-LOC  OBJECT CODE     LINE SOURCE TEXT
-  VALUE
-
-                      00098 ;       Bit 08-02 :   0 : Unimplemented  Reads as "1"
-                      00099 ;       Bit 01-00 :  11 : Write Protection Off
-                      00100 
-8007   00FA           00101         __CONFIG        _CONFIG1, 0x00fa
-8008   0803           00102         __CONFIG        _CONFIG2, 0x0803
-                      00103 
-                      00104 ;  Define parameters about this device.
-  00000002            00105 DEVICE_TYPE_DMX_DEVICE  equ             002H
-  00000000            00106 DEVICE_VERSION_MINOR    equ             000H
-  00000001            00107 DEVICE_VERSION_MAJOR    equ             001H
-                      00108 
-                      00109 ;  About the channel assignments ...
+                      00106 
+                      00107 ; Configuration bits are listed here.  There are two configuration words.
+                      00108 ;
+                      00109 ; CONFIG1 : 0x00e2  : 0x0fa with watch dog timer.
                       00110 ;
-                      00111 ;  The block of code at 0x20 (note that it is on a 32 byte boundary) holds the
-                      00112 ;  DMX channel assignments for the board channels 0-3.  It's a small map table.
-                      00113 ;  The table can be commented out if the board already has had the map set.
-                      00114 ;  If the board has not had the map set, then the channel addresses should be
-                      00115 ;  set (CHANNEL_ADDRESS_0 through 3), the code uncommented and the board loaded.
-                      00116 ;
-                      00117 ;  When the board starts up, the addresses are read from the program flash at
-                      00118 ;  0x20 and placed into high ram for easy accessibility.
-                      00119 
-                      00120 ;  Define the DMX addresses for each channel.  These do not need to be
-                      00121 ;  sequential and may be the same as in another DMX device.
-                      00122 
-  00000018            00123 CHANNEL_ADDRESS_0           equ     .24
-  00000019            00124 CHANNEL_ADDRESS_1           equ     .25
-  0000001A            00125 CHANNEL_ADDRESS_2           equ     .26
-  0000001B            00126 CHANNEL_ADDRESS_3           equ     .27
-                      00127 
-                      00128 ;  Uncomment this table if the board needs to have it's channel map set.
+                      00111 ;       Bit 13    :   0 : Disable Fail Safe Clock Monitor
+                      00112 ;       Bit 12    :   0 : Disable Internal/External Switch Over
+                      00113 ;
+                      00114 ;       Bit 11    :   0 : Enable CLKOUT on the CLKOUT Pin
+                      00115 ;       Bit 10-09 :  00 : Disable Brown-Out Detection
+                      00116 ;       Bit 08    :   0 : Unimplemented  Reads as "1"
+                      00117 
+                      00118 ;       Bit 07    :   1 : Disable Code Protection
+                      00119 ;       Bit 06    :   1 : MCLR is Reset Signal
+                      00120 ;       Bit 05    :   1 : Disable Power Up Timer
+                      00121 ;       Bit 04-03 :  00 : Disable Watch Dog Timer
+                      00122 ;       Bit 04-03 :  11 : Enable Watch Dog Timer.
+                      00123 ;       Bit 02-00 : 010 : HS Oscillator On OSC1 and OSC2
+                      00124 ;
+                      00125 ; CONFIG2 : 0x0803
+                      00126 ;
+                      00127 ;       Bit 13    :   0 : High Voltage Programming on MCLR
+                      00128 ;       Bit 12    :   0 : In-Circuit Debugger Enabled
                       00129 
-                      00130     org     0x20
-0020                  00131 channel_address_table
-0020   0018           00132 CHANNEL_ADD_0_LOW   dw  CHANNEL_ADDRESS_0&0xff
-0021   0000           00133 CHANNEL_ADD_0_HIGH  dw  CHANNEL_ADDRESS_0>>8
-0022   0019           00134 CHANNEL_ADD_1_LOW   dw  CHANNEL_ADDRESS_1&0xff
-0023   0000           00135 CHANNEL_ADD_1_HIGH  dw  CHANNEL_ADDRESS_1>>8
-0024   001A           00136 CHANNEL_ADD_2_LOW   dw  CHANNEL_ADDRESS_2&0xff
-0025   0000           00137 CHANNEL_ADD_2_HIGH  dw  CHANNEL_ADDRESS_2>>8
-0026   001B           00138 CHANNEL_ADD_3_LOW   dw  CHANNEL_ADDRESS_3&0xff
-0027   0000           00139 CHANNEL_ADD_3_HIGH  dw  CHANNEL_ADDRESS_3>>8
-                      00140 
-                      00141 ;  Define the locations in RAM necessary.  Valid RAM locations are 20-5F.
-                      00142 ;  Only 64 bytes to use them wisely.
+                      00130 ;       Bit 11    :   1 : Disable Low Power Brown Out Reset
+                      00131 ;       Bit 10    :   0 : Brown Out High Trip Point Selected (Not Used)
+                      00132 ;       Bit 09    :   0 : Disable Stack Over/Underflow Reset
+                      00133 ;       Bit 08-02 :   0 : Unimplemented  Reads as "1"
+                      00134 ;       Bit 01-00 :  11 : Write Protection Off
+                      00135 
+8007   00FA           00136         __CONFIG        _CONFIG1, 0x00fa
+8008   0803           00137         __CONFIG        _CONFIG2, 0x0803
+                      00138 
+                      00139 ;  Define parameters about this device.
+  00000002            00140 DEVICE_TYPE_DMX_DEVICE  equ             002H
+  00000000            00141 DEVICE_VERSION_MINOR    equ             000H
+  00000001            00142 DEVICE_VERSION_MAJOR    equ             001H
                       00143 
-  00000020            00144 ram             equ     0x20            ; First address of available RAM
-                      00145 
-                      00146 ;  Define the locations in RAM for holding the channel addresses.
-                      00147     cblock  0x70
-  00000070            00148         dmx_0_low
-  00000071            00149         dmx_0_high
-  00000072            00150         dmx_1_low
-MPASM  5.47  /USERS/MICHAEL/DEVELOPMENT/DOORB   10-20-2013  15:22:49         PAGE  4
+                      00144 ;  About the channel assignments ...
+                      00145 ;
+                      00146 ;  The block of code at 0x20 (note that it is on a 32 byte boundary) holds the
+                      00147 ;  DMX channel assignments for the board channels 0-3.  It's a small map table.
+                      00148 ;  The table can be commented out if the board already has had the map set.
+                      00149 ;  If the board has not had the map set, then the channel addresses should be
+                      00150 ;  set (CHANNEL_ADDRESS_0 through 3), the code uncommented and the board loaded.
+MPASM  5.47  /USERS/MICHAEL/DEVELOPMENT/DOORB   10-30-2013  19:59:15         PAGE  4
 
 
 LOC  OBJECT CODE     LINE SOURCE TEXT
   VALUE
 
-  00000073            00151         dmx_1_high
-  00000074            00152         dmx_2_low
-  00000075            00153         dmx_2_high
-  00000076            00154         dmx_3_low
-  00000077            00155         dmx_3_high
-                      00156     endc
+                      00151 ;
+                      00152 ;  When the board starts up, the addresses are read from the program flash at
+                      00153 ;  0x20 and placed into high ram for easy accessibility.
+                      00154 
+                      00155 ;  Define the DMX addresses for each channel.  These do not need to be
+                      00156 ;  sequential and may be the same as in another DMX device.
                       00157 
-                      00158 ;  Define all the variables used for this code.  These should fit between
-                      00159 ;  0x20 and 0x7f.
-                      00160         cblock 0x20
-                      00161         endc
+  00000018            00158 CHANNEL_ADDRESS_0           equ     .24
+  00000019            00159 CHANNEL_ADDRESS_1           equ     .25
+  0000001A            00160 CHANNEL_ADDRESS_2           equ     .26
+  0000001B            00161 CHANNEL_ADDRESS_3           equ     .27
                       00162 
-                      00163 ; ------------------------------------------------------------------------------
-                      00164 ;
-                      00165 ;  Vector Table
-                      00166 ;
-                      00167 ;  Setup the reset and interrupt vectors for the chip.
-                      00168 
-                      00169         org             0x00            ; Set program memory base at reset vector 0x00.
-0000   2???           00170         goto    boot            ; Go to boot code.
-                      00171 
-                      00172         org             0x04
-0004   2???           00173         goto    system_isr                      ; Handle interrupts.
-                      00174 
-                      00175 ;
-                      00176 ; ------------------------------------------------------------------------------
-                      00177 
-                      00178 ; ------------------------------------------------------------------------------
-                      00179 ;
-                      00180 ;  System Module
-                      00181 ;
-                      00182 ;  Here is where we initialize all the functions on the chip.
-                      00183 
-                      00184         org             0x40
-                      00185 
-                      00186 ;  Routine - system_init : Initializes the processor.
-0040                  00187 system_init
-                      00188 
-0040   0020           00189         banksel INTCON
-0041   138B           00190         bcf             INTCON,GIE              ; Disable all interrupts.
-0042   120B           00191         bcf             INTCON,INTE
+                      00163 ;  Uncomment this table if the board needs to have it's channel map set.
+                      00164 
+                      00165     org     0x20
+0020                  00166 channel_address_table
+0020   0018           00167 CHANNEL_ADD_0_LOW   dw  CHANNEL_ADDRESS_0&0xff
+0021   0000           00168 CHANNEL_ADD_0_HIGH  dw  CHANNEL_ADDRESS_0>>8
+0022   0019           00169 CHANNEL_ADD_1_LOW   dw  CHANNEL_ADDRESS_1&0xff
+0023   0000           00170 CHANNEL_ADD_1_HIGH  dw  CHANNEL_ADDRESS_1>>8
+0024   001A           00171 CHANNEL_ADD_2_LOW   dw  CHANNEL_ADDRESS_2&0xff
+0025   0000           00172 CHANNEL_ADD_2_HIGH  dw  CHANNEL_ADDRESS_2>>8
+0026   001B           00173 CHANNEL_ADD_3_LOW   dw  CHANNEL_ADDRESS_3&0xff
+0027   0000           00174 CHANNEL_ADD_3_HIGH  dw  CHANNEL_ADDRESS_3>>8
+                      00175 
+                      00176 ;  Define the locations in RAM necessary.  Valid RAM locations are 20-5F.
+                      00177 ;  Only 64 bytes to use them wisely.
+                      00178 
+  00000020            00179 ram             equ     0x20            ; First address of available RAM
+                      00180 
+                      00181 ;  Define the locations in RAM for holding the channel addresses.
+                      00182 ;    cblock  0x70
+                      00183 ;        dmx_0_low
+                      00184 ;        dmx_0_high
+                      00185 ;        dmx_1_low
+                      00186 ;        dmx_1_high
+                      00187 ;        dmx_2_low
+                      00188 ;        dmx_2_high
+                      00189 ;        dmx_3_low
+                      00190 ;        dmx_3_high
+                      00191 ;    endc
                       00192 
-                      00193     ; Set the clock to external 20Mhz.
-0043   0021           00194     banksel OSCCON
-0044   3000           00195     movlw   0x00            ; Clock is external
-Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
-0045   0099           00196     movwf   OSCCON
+                      00193 ;  Define all the variables used for this code.  These should fit between
+                      00194 ;  0x20 and 0x7f.
+                      00195         cblock 0x20
+                      00196         endc
                       00197 
-                      00198     ; Set weak pull up resisters to be controlled individually.
-0046   0021           00199     banksel OPTION_REG
-Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
-0047   1395           00200     bcf     OPTION_REG,NOT_WPUEN
-                      00201 
-MPASM  5.47  /USERS/MICHAEL/DEVELOPMENT/DOORB   10-20-2013  15:22:49         PAGE  5
+                      00198 ; ------------------------------------------------------------------------------
+                      00199 ;
+                      00200 ;  Vector Table
+                      00201 ;
+                      00202 ;  Setup the reset and interrupt vectors for the chip.
+                      00203 
+MPASM  5.47  /USERS/MICHAEL/DEVELOPMENT/DOORB   10-30-2013  19:59:15         PAGE  5
 
 
 LOC  OBJECT CODE     LINE SOURCE TEXT
   VALUE
 
-                      00202     ; Set all ports to not be analog.  Individual drivers can change the bits.
-0048   0023           00203     banksel ANSELC
-Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
-0049   018E           00204     clrf ANSELC
-                      00205 
-004A   0023           00206     banksel ANSELB
-Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
-004B   018D           00207     clrf    ANSELB
-                      00208 
-004C   0023           00209     banksel ANSELA
-Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
-004D   018C           00210     clrf    ANSELA
-                      00211 
-                      00212     ;  We are done setting everything up, go to main.
-004E   0008           00213         return          ; All done so return.
-                      00214 
-                      00215 ;  Routine - system_start : This final system startup items such as
-                      00216 ;  enabling interrupts.
-004F                  00217 system_start
+                      00204         org             0x00            ; Set program memory base at reset vector 0x00.
+0000   2???           00205         goto    boot            ; Go to boot code.
+                      00206 
+                      00207         org             0x04
+0004   2???           00208         goto    system_isr                      ; Handle interrupts.
+                      00209 
+                      00210 ;
+                      00211 ; ------------------------------------------------------------------------------
+                      00212 
+                      00213 ; ------------------------------------------------------------------------------
+                      00214 ;
+                      00215 ;  System Module
+                      00216 ;
+                      00217 ;  Here is where we initialize all the functions on the chip.
                       00218 
-                      00219         ;  Enable interrupts.
-004F   0020           00220     banksel INTCON
-0050   170B           00221     bsf     INTCON,PEIE     ; Enable peripheral interrupts.
-0051   178B           00222     bsf     INTCON,GIE      ; Enable global interrupts.
+                      00219         org             0x40
+                      00220 
+                      00221 ;  Routine - system_init : Initializes the processor.
+0040                  00222 system_init
                       00223 
-                      00224     ;  Return to the caller.
-0052   0008           00225     return
-                      00226 
+0040   0020           00224         banksel INTCON
+0041   138B           00225         bcf             INTCON,GIE              ; Disable all interrupts.
+0042   120B           00226         bcf             INTCON,INTE
                       00227 
-                      00228 ;  Routine - system_isr : This routine handles the interrupts for the
-                      00229 ;  processor.  Simply save state then call each potential interrupt
-                      00230 ;  source.
-                      00231 
-0053                  00232 system_isr
-                      00233 
-0053   2???           00234         call    timer_isr
-0054   2???           00235     call    comparator_isr
-                      00236 ;    call    uart_isr
-                      00237 
-0055                  00238 system_isr_return
-0055   0009           00239         retfie
+                      00228     ; Set the clock to external 20Mhz.
+0043   0021           00229     banksel OSCCON
+0044   3000           00230     movlw   0x00            ; Clock is external
+Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
+0045   0099           00231     movwf   OSCCON
+                      00232 
+                      00233     ; Set weak pull up resisters to be controlled individually.
+0046   0021           00234     banksel OPTION_REG
+Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
+0047   1395           00235     bcf     OPTION_REG,NOT_WPUEN
+                      00236 
+                      00237     ; Set all ports to not be analog.  Individual drivers can change the bits.
+0048   0023           00238     banksel ANSELC
+Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
+0049   018E           00239     clrf ANSELC
                       00240 
-                      00241 ;  Routine - system_halt : If there are any errors, then the code jumps here
-                      00242 ;  to hopefully report the error.
+004A   0023           00241     banksel ANSELB
+Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
+004B   018D           00242     clrf    ANSELB
                       00243 
-0056                  00244 system_halt
-0056   2???           00245     goto    system_halt
+004C   0023           00244     banksel ANSELA
+Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
+004D   018C           00245     clrf    ANSELA
                       00246 
-                      00247 ;  System Module : END
-                      00248 ;
-                      00249 ; ------------------------------------------------------------------------------
-                      00250 
-                      00251 
-MPASM  5.47  /USERS/MICHAEL/DEVELOPMENT/DOORB   10-20-2013  15:22:49         PAGE  6
+                      00247     ;  We are done setting everything up, go to main.
+004E   0008           00248         return          ; All done so return.
+                      00249 
+                      00250 ;  Routine - system_start : This final system startup items such as
+                      00251 ;  enabling interrupts.
+MPASM  5.47  /USERS/MICHAEL/DEVELOPMENT/DOORB   10-30-2013  19:59:15         PAGE  6
 
 
 LOC  OBJECT CODE     LINE SOURCE TEXT
   VALUE
 
-                      00252 ; ------------------------------------------------------------------------------
-                      00253 ;
-                      00254 ;  DMX Module
-                      00255 ;
-                      00256 ;  DMX module provides support for the DMX channels.
-                      00257 
-0057                  00258 dmx_init
-0057   0023           00259     BANKSEL PMADRL          ; Select Bank for PMCON registers
-0058   3000           00260     MOVLW   0    ;
-Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
-0059   0092           00261     MOVWF   PMADRH          ; Store MSB of address
-Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
-005A   1315           00262     BCF     PMCON1,CFGS     ; Do not select Configuration Space
-                      00263 
-005B   3020           00264     MOVLW   0x20
-Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
-005C   0091           00265     MOVWF   PMADRL          ; Store LSB of address
-Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
-005D   1415           00266     BSF     PMCON1,RD       ; Initiate read
-005E   0000           00267     NOP                     ; Ignored (Figure 10-2)
-005F   0000           00268     NOP                     ; Ignored (Figure 10-2)
-Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
-0060   0813           00269     MOVF    PMDATL,W        ; Get LSB of word
-0061   00F0           00270     movwf   dmx_0_low
-                      00271 ;    MOVF    PMDATH,W        ; Get MSB of word
-                      00272 ;    MOVWF   PROG_DATA_HI    ; Store in user location
-                      00273 ;    BCF     PMCON1,RD
+004F                  00252 system_start
+                      00253 
+                      00254         ;  Enable interrupts.
+004F   0020           00255     banksel INTCON
+0050   170B           00256     bsf     INTCON,PEIE     ; Enable peripheral interrupts.
+0051   178B           00257     bsf     INTCON,GIE      ; Enable global interrupts.
+                      00258 
+                      00259     ;  Return to the caller.
+0052   0008           00260     return
+                      00261 
+                      00262 
+                      00263 ;  Routine - system_isr : This routine handles the interrupts for the
+                      00264 ;  processor.  Simply save state then call each potential interrupt
+                      00265 ;  source.
+                      00266 
+0053                  00267 system_isr
+                      00268 
+0053   2???           00269         call    timer_isr
+                      00270 ;    call    uart_isr
+                      00271 
+0054                  00272 system_isr_return
+0054   0009           00273         retfie
                       00274 
-0062   3021           00275     MOVLW   0x21
-Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
-0063   0091           00276     MOVWF   PMADRL          ; Store LSB of address
-Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
-0064   1415           00277     BSF     PMCON1,RD       ; Initiate read
-0065   0000           00278     NOP                     ; Ignored (Figure 10-2)
-0066   0000           00279     NOP                     ; Ignored (Figure 10-2)
-Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
-0067   0813           00280     MOVF    PMDATL,W        ; Get LSB of word
-0068   00F1           00281     movwf   dmx_0_high
-                      00282 ;    MOVF    PMDATH,W        ; Get MSB of word
-                      00283 ;    BCF     PMCON1,RD
+                      00275 ;  Routine - system_halt : If there are any errors, then the code jumps here
+                      00276 ;  to hopefully report the error.
+                      00277 
+0055                  00278 system_halt
+0055   2???           00279     goto    system_halt
+                      00280 
+                      00281 ;  System Module : END
+                      00282 ;
+                      00283 ; ------------------------------------------------------------------------------
                       00284 
-0069   3022           00285     MOVLW   0x22
-Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
-006A   0091           00286     MOVWF   PMADRL          ; Store LSB of address
-Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
-006B   1415           00287     BSF     PMCON1,RD       ; Initiate read
-006C   0000           00288     NOP                     ; Ignored (Figure 10-2)
-006D   0000           00289     NOP                     ; Ignored (Figure 10-2)
-Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
-006E   0813           00290     MOVF    PMDATL,W        ; Get LSB of word
-006F   00F2           00291     movwf   dmx_1_low
+                      00285 
+                      00286 ; ------------------------------------------------------------------------------
+                      00287 ;
+                      00288 ;  UART Module
+                      00289 ;
+                      00290 ;  This module handles the reception of the DMX data.  It is state machine
+                      00291 ;  driven.  Data for the specified channels is saved in the RAM.
                       00292 
-0070   3023           00293     MOVLW   0x23
-MPASM  5.47  /USERS/MICHAEL/DEVELOPMENT/DOORB   10-20-2013  15:22:49         PAGE  7
+  00000010            00293 UART_TX_QUEUE_SIZE  equ     010H        ;  TX queue size is 16 bytes.
+  00000004            00294 UART_RX_QUEUE_SIZE  equ     004H        ;  TX queue size is 4 bytes.
+                      00295 
+                      00296 ;  Define variables for the timer 1 module.
+                      00297         cblock
+  00000020            00298         uart_tx_head
+  00000021            00299         uart_tx_tail
+  00000022            00300         uart_tx_temp
+  00000023            00301         uart_rx_head
+  00000024            00302         uart_rx_tail
+  00000025            00303         uart_rx_temp
+                      00304         endc
+MPASM  5.47  /USERS/MICHAEL/DEVELOPMENT/DOORB   10-30-2013  19:59:15         PAGE  7
 
 
 LOC  OBJECT CODE     LINE SOURCE TEXT
   VALUE
 
+                      00305 
+                      00306     cblock  0x60
+  00000060            00307         uart_rx_queue: UART_RX_QUEUE_SIZE
+                      00308     endc
+                      00309 ;  Define variables for the timer 1 module.
+                      00310         cblock 0x70
+                      00311 ;        uart_state      ;  State of the uart state machine.
+                      00312 ;        uart_count_low  ;  Tracks number of bytes read.
+                      00313 ;        uart_count_high
+                      00314 ;        uart_data       ;  Stores current channel data.
+                      00315 ;        dmx0
+                      00316 ;        dmx1
+                      00317 ;        dmx2
+                      00318 ;        dmx3
+  00000070            00319         uart_tx_queue: UART_TX_QUEUE_SIZE
+                      00320 ;        uart_tx_head
+                      00321 ;        uart_tx_tail
+                      00322 ;        uart_tx_temp
+                      00323         endc
+                      00324     cblock 0x26
+                      00325     endc
+                      00326 
+                      00327 ;  Define uart states.
+  00000000            00328 UART_STATE_BREAK    equ     000H        ;  Looking for the gap between packets.
+  00000001            00329 UART_STATE_START    equ     001H        ;  Looking for the start character.
+  00000002            00330 UART_STATE_DATA     equ     002H        ;  Reading the DMX channel data.
+                      00331 
+                      00332 ;  Routine - uart_init : This sets up the UART to receive data from the DMX
+                      00333 ;  controller.
+                      00334 
+0056                  00335 uart_init
+                      00336 
+                      00337     ;  Setup the baud rate generator to 9600 baud.
+0056   0023           00338     banksel BAUDCON
 Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
-0071   0091           00294     MOVWF   PMADRL          ; Store LSB of address
+0057   109F           00339     bcf     BAUDCON,WUE     ; Wake up disabled.
 Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
-0072   1415           00295     BSF     PMCON1,RD       ; Initiate read
-0073   0000           00296     NOP                     ; Ignored (Figure 10-2)
-0074   0000           00297     NOP                     ; Ignored (Figure 10-2)
+0058   101F           00340     bcf     BAUDCON,ABDEN   ; Disable autobaud.
 Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
-0075   0813           00298     MOVF    PMDATL,W        ; Get LSB of word
-0076   00F3           00299     movwf   dmx_1_high
-                      00300 
-0077   3024           00301     MOVLW   0x24
+0059   159F           00341     bsf     BAUDCON,BRG16   ;  See formula in documentation.
 Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
-0078   0091           00302     MOVWF   PMADRL          ; Store LSB of address
-Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
-0079   1415           00303     BSF     PMCON1,RD       ; Initiate read
-007A   0000           00304     NOP                     ; Ignored (Figure 10-2)
-007B   0000           00305     NOP                     ; Ignored (Figure 10-2)
-Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
-007C   0813           00306     MOVF    PMDATL,W        ; Get LSB of word
-007D   00F4           00307     movwf   dmx_2_low
-                      00308 
-007E   3025           00309     MOVLW   0x25
-Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
-007F   0091           00310     MOVWF   PMADRL          ; Store LSB of address
-Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
-0080   1415           00311     BSF     PMCON1,RD       ; Initiate read
-0081   0000           00312     NOP                     ; Ignored (Figure 10-2)
-0082   0000           00313     NOP                     ; Ignored (Figure 10-2)
-Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
-0083   0813           00314     MOVF    PMDATL,W        ; Get LSB of word
-0084   00F5           00315     movwf   dmx_2_high
-                      00316 
-0085   3026           00317     MOVLW   0x26
-Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
-0086   0091           00318     MOVWF   PMADRL          ; Store LSB of address
-Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
-0087   1415           00319     BSF     PMCON1,RD       ; Initiate read
-0088   0000           00320     NOP                     ; Ignored (Figure 10-2)
-0089   0000           00321     NOP                     ; Ignored (Figure 10-2)
-Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
-008A   0813           00322     MOVF    PMDATL,W        ; Get LSB of word
-008B   00F6           00323     movwf   dmx_3_low
-                      00324 
-008C   3027           00325     MOVLW   0x27
-Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
-008D   0091           00326     MOVWF   PMADRL          ; Store LSB of address
-Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
-008E   1415           00327     BSF     PMCON1,RD       ; Initiate read
-008F   0000           00328     NOP                     ; Ignored (Figure 10-2)
-0090   0000           00329     NOP                     ; Ignored (Figure 10-2)
-Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
-0091   0813           00330     MOVF    PMDATL,W        ; Get LSB of word
-0092   00F7           00331     movwf   dmx_3_high
-MPASM  5.47  /USERS/MICHAEL/DEVELOPMENT/DOORB   10-20-2013  15:22:49         PAGE  8
-
-
-LOC  OBJECT CODE     LINE SOURCE TEXT
-  VALUE
-
-                      00332 
-                      00333 ;    movlw   LOW(CHANNEL_ADDRESS_0)
-                      00334 ;    movwf   dmx_0_low
-                      00335 ;    movlw   HIGH(CHANNEL_ADDRESS_0);
-                      00336 ;    movwf   dmx_0_high
-                      00337 ;    movlw   LOW(CHANNEL_ADDRESS_1)
-                      00338 ;    movwf   dmx_1_low
-                      00339 ;    movlw   HIGH(CHANNEL_ADDRESS_1);
-                      00340 ;    movwf   dmx_1_high
-                      00341 ;    movlw   LOW(CHANNEL_ADDRESS_2)
-                      00342 ;    movwf   dmx_2_low
-                      00343 ;    movlw   HIGH(CHANNEL_ADDRESS_2);
-                      00344 ;    movwf   dmx_2_high
-                      00345 ;    movlw   LOW(CHANNEL_ADDRESS_3)
-                      00346 ;    movwf   dmx_3_low
-                      00347 ;    movlw   HIGH(CHANNEL_ADDRESS_3);
-                      00348 ;    movwf   dmx_3_high
+005A   151E           00342     bsf     TXSTA,BRGH
+                      00343 
+005B   0020           00344     banksel uart_tx_head
+005C   01A0           00345     clrf    uart_tx_head
+005D   01A1           00346     clrf    uart_tx_tail
+005E   01A3           00347     clrf    uart_rx_head
+005F   01A4           00348     clrf    uart_rx_tail
                       00349 
-                      00350     ;  Return to the caller.
-0093   0008           00351     return
-                      00352 
-                      00353 ;  DMX Module : END
-                      00354 ;
-                      00355 ; ------------------------------------------------------------------------------
-                      00356 
+                      00350     ;  520 is count for baud rate generator to run at 9600 baud.  This is
+                      00351     ;  0x0208 in hex.
+0060   0023           00352     banksel BAUDCON
+0061   3002           00353     movlw   0x02
+MPASM  5.47  /USERS/MICHAEL/DEVELOPMENT/DOORB   10-30-2013  19:59:15         PAGE  8
+
+
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
+0062   009C           00354     movwf   SPBRGH
+0063   3008           00355     movlw   0x08
+Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
+0064   009B           00356     movwf   SPBRGL
                       00357 
-                      00358 ; ------------------------------------------------------------------------------
-                      00359 ;
-                      00360 ;  Comparator Module
-                      00361 ;
-                      00362 ;  Comparator module provides zero crossing detection and handling.
-                      00363 
-                      00364         cblock
-  00000020            00365         delay
-                      00366         endc
+                      00358     ;  Turn on the transmitter.
+0065   0023           00359     banksel TXSTA
+Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
+0066   121E           00360     bcf     TXSTA,SYNC      ; Set asynchronous mode.
+                      00361 
+0067   0023           00362     banksel RCSTA
+Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
+0068   179D           00363     bsf     RCSTA,SPEN      ; Enable the UART.
+                      00364 
+0069   0023           00365     banksel TXSTA
+Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
+006A   169E           00366     bsf     TXSTA,TXEN      ; Enable the transmitter.
                       00367 
-                      00368 ;  Routine - comparator_init : Initializes all the settings necessary to
-                      00369 ;  generate an interrupt for the zero crossing circuitry.
-                      00370 
-0094                  00371 comparator_init
-                      00372 
-                      00373     ;  Start by setting up the Fixed Voltage Reference Control Register.  This
-                      00374     ;  should set a reference voltage of 2.048V used for the comparator.
-0094   0022           00375     banksel FVRCON
+                      00368     ;  Set receiver.
 Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
-0095   1797           00376     bsf     FVRCON,FVREN        ;  Enable the reference generator.
+006B   131D           00369     bcf     RCSTA,RX9
 Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
-0096   1597           00377     bsf     FVRCON,CDAFVR1       ;  Set reference to 2.048V
+006C   161D           00370     bsf     RCSTA,CREN      ; Enable reception.
+                      00371 
+                      00372     ;  Setup the debug port, PORTC, pin 4.
+006D   0021           00373     banksel TRISC
 Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
-0097   1117           00378     bcf     FVRCON,CDAFVR0
-Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
-0098   1097           00379     bcf     FVRCON,ADFVR1       ;  Turn off the ADC reference.
-Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
-MPASM  5.47  /USERS/MICHAEL/DEVELOPMENT/DOORB   10-20-2013  15:22:49         PAGE  9
-
-
-LOC  OBJECT CODE     LINE SOURCE TEXT
-  VALUE
-
-0099   1017           00380     bcf     FVRCON,ADFVR0
-                      00381 
-                      00382     ;  Setup the two comparator control registers.
-009A   0022           00383     banksel CM1CON0
-Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
-009B   1391           00384     bcf     CM1CON0,C1ON        ;  Disable the comparator for a moment.
-Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
-009C   1291           00385     bcf     CM1CON0,C1OE        ;  Output is only used internally.
-Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
-009D   1211           00386     bcf     CM1CON0,C1POL       ;  Invert the output.  Interrupt on leading edge.
-Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
-009E   1511           00387     bsf     CM1CON0,C1SP        ;  Use high-speed comparisons.
-Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
-009F   1091           00388     bcf     CM1CON0,C1HYS       ;  No hysterisis needed.
-Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
-00A0   1011           00389     bcf     CM1CON0,C1SYNC      ;  Output is asynchronous.
-                      00390 
-Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
-00A1   1792           00391     bsf     CM1CON1,C1INTP      ;  Interrupt on negative going edge.
-Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
-00A2   1312           00392     bcf     CM1CON1,C1INTN
-Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
-00A3   1692           00393     bsf     CM1CON1,C1PCH1      ;  Positive comparator input from Fixed Ref.
-Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
-00A4   1212           00394     bcf     CM1CON1,C1PCH0
-Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
-00A5   1112           00395     bcf     CM1CON1,C1NCH2      ;  Negative comparator input from ac signal.
-Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
-00A6   1492           00396     bsf     CM1CON1,C1NCH1
-Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
-00A7   1014           00397     bcf     CM2CON1,C1NCH0
+006E   120E           00374     bcf     TRISC,TRISC4
+006F   0020           00375     banksel PORTC
+0070   120E           00376     bcf     PORTC,RC4
+                      00377 
+                      00378     ;  Return to the caller.
+0071   0008           00379     return;
+                      00380 
+                      00381 ;  Routine - uart_rx_tick : Looks for a character received and places it
+                      00382 ;  in the queue.
+                      00383 
+0072                  00384 uart_rx_tick
+                      00385 
+0072   0020           00386     banksel PIR1
+0073   1E91           00387     btfss   PIR1,RCIF
+0074   2???           00388     goto    uart_rx_tick_return
+                      00389 
+                      00390     ; We have a character.  Put it in the queue if there is room.
+0075   0020           00391     banksel uart_rx_head
+                      00392 
+0076   0A24           00393     incf    uart_rx_tail,W      ; See if there is room.
+0077   3903           00394     andlw   UART_RX_QUEUE_SIZE -1
+0078   0623           00395     xorwf   uart_rx_head,W      ; If tail+1 == head, then no room.
+0079   1903           00396     btfsc   STATUS,Z
+007A   2???           00397     goto    uart_rx_error       ; No room so don't add it.
                       00398 
-                      00399     ;  Setup the input signal for analog input.
-00A8   0023           00400     banksel ANSELC
-Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
-00A9   150E           00401     bsf     ANSELC,ANSC2
-                      00402 
-                      00403     ;  Setup the debug port, PORTC, pin 6.
-00AA   0021           00404     banksel TRISC
-Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
-00AB   130E           00405     bcf     TRISC,TRISC6
-00AC   0020           00406     banksel PORTC
-00AD   130E           00407     bcf     PORTC,RC6
-                      00408 
-                      00409     ;  Turn on the comparator.
-00AE   0022           00410     banksel CM1CON0
-Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
-00AF   1791           00411     bsf     CM1CON0,C1ON        ;  Enable the comparator.
-                      00412 
-                      00413     ;  Enable the interupts.
-00B0   0021           00414     banksel PIE2
-Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
-00B1   1692           00415     bsf     PIE2,C1IE
-MPASM  5.47  /USERS/MICHAEL/DEVELOPMENT/DOORB   10-20-2013  15:22:49         PAGE 10
+MPASM  5.47  /USERS/MICHAEL/DEVELOPMENT/DOORB   10-30-2013  19:59:15         PAGE  9
 
 
 LOC  OBJECT CODE     LINE SOURCE TEXT
   VALUE
 
+                      00399     ; Move character into the queue.
+007B   0023           00400     banksel RCREG
+Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
+007C   0819           00401     movfw   RCREG
+007D   0020           00402     banksel uart_rx_temp
+007E   00A5           00403     movwf   uart_rx_temp
+                      00404 
+007F   3060           00405     movlw   uart_rx_queue
+0080   0084           00406     movwf   FSR0L
+0081   0185           00407     clrf    FSR0H
+0082   0824           00408     movfw   uart_rx_tail
+Message[305]: Using default destination of 1 (file).
+0083   0784           00409     addwf   FSR0L
+0084   0825           00410     movfw   uart_rx_temp
+0085   0080           00411     movwf   INDF0
+Message[305]: Using default destination of 1 (file).
+0086   0AA4           00412     incf    uart_rx_tail
+0087   3003           00413     movlw   UART_RX_QUEUE_SIZE - 1
+Message[305]: Using default destination of 1 (file).
+0088   05A4           00414     andwf   uart_rx_tail
+                      00415 ;    goto    uart_rx_tick_return
                       00416 
-                      00417     ;  Return to the caller.
-00B2   0008           00418     return
-                      00419 
-                      00420 ;  Routine - comparator_isr : This handles the zero crossing interrupt.
-                      00421 
-00B3                  00422 comparator_isr
-                      00423 
-00B3   0020           00424     banksel PIR2
-00B4   1E92           00425     btfss   PIR2,C1IF
-00B5   0008           00426     return
-                      00427 
-00B6   1292           00428     bcf     PIR2,C1IF
-                      00429 
-                      00430     ;  Synchronize Timer 1 to AC line.
+                      00417     ; Pulse the UART debug pin.
+0089   0020           00418     banksel PORTC
+008A   160E           00419     bsf     PORTC,RC4
+008B   120E           00420     bcf     PORTC,RC4
+008C   2???           00421     goto    uart_rx_tick_return
+                      00422 
+008D                  00423 uart_rx_error
+008D   0023           00424     banksel RCREG
+Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
+008E   0819           00425     movfw   RCREG
+008F   0020           00426     banksel PORTC
+0090   160E           00427     bsf     PORTC,RC4
+0091   120E           00428     bcf     PORTC,RC4
+0092   160E           00429     bsf     PORTC,RC4
+0093   120E           00430     bcf     PORTC,RC4
                       00431 
-                      00432 ;    banksel delay
-                      00433 ;    movlw   0x0F
-                      00434 ;    movwf   delay
-                      00435 ;comp_loop
-                      00436 ;    decfsz  delay,F
-                      00437 ;    goto    comp_loop
+0094                  00432 uart_rx_tick_return
+0094   0008           00433     return
+                      00434 
+                      00435 ;  Routine - uart_tx_tick : Transmits characters from the queue.
+                      00436 
+0095                  00437 uart_tx_tick
                       00438 
-00B7   0020           00439     banksel PORTC
-00B8   170E           00440     bsf     PORTC,RC6
-00B9   130E           00441     bcf     PORTC,RC6
-                      00442 
-00BA   2???           00443     call    pwm_sync
-                      00444 
-                      00445     ;  Return to the caller.
-00BB   0008           00446     return
-                      00447 
-                      00448 ;  Comparator Module : END
-                      00449 ;
-                      00450 ; ------------------------------------------------------------------------------
-                      00451 
-                      00452 
-                      00453 ; ------------------------------------------------------------------------------
-                      00454 ;
-                      00455 ;  UART Module
-                      00456 ;
-                      00457 ;  This module handles the reception of the DMX data.  It is state machine
-                      00458 ;  driven.  Data for the specified channels is saved in the RAM.
+                      00439     ; If no characters to send, then return.
+0095   0020           00440     banksel uart_tx_head
+0096   0820           00441     movfw   uart_tx_head
+0097   0621           00442     xorwf   uart_tx_tail,W
+0098   1903           00443     btfsc   STATUS,Z
+0099   2???           00444     goto    uart_tx_tick_return
+                      00445 
+                      00446     ; If transmitter is not ready, then return.
+MPASM  5.47  /USERS/MICHAEL/DEVELOPMENT/DOORB   10-30-2013  19:59:15         PAGE 10
+
+
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+009A   0020           00447     banksel PIR1
+009B   1E11           00448     btfss   PIR1,TXIF
+009C   2???           00449     goto    uart_tx_tick_return
+                      00450 
+                      00451     ; Send next character then remove it from the queue.
+009D   0020           00452     banksel uart_tx_queue
+009E   3070           00453     movlw   uart_tx_queue
+009F   0084           00454     movwf   FSR0L
+00A0   0185           00455     clrf    FSR0H
+00A1   0820           00456     movfw   uart_tx_head
+Message[305]: Using default destination of 1 (file).
+00A2   0784           00457     addwf   FSR0L
+00A3   0800           00458     movfw   INDF0
                       00459 
-                      00460 ;  Define variables for the timer 1 module.
-                      00461         cblock
-  00000021            00462         uart_state      ;  State of the uart state machine.
-  00000022            00463         uart_count_low  ;  Tracks number of bytes read.
-  00000023            00464         uart_count_high
-  00000024            00465         uart_data       ;  Stores current channel data.
-  00000025            00466         dmx0
-  00000026            00467         dmx1
-  00000027            00468         dmx2
-MPASM  5.47  /USERS/MICHAEL/DEVELOPMENT/DOORB   10-20-2013  15:22:49         PAGE 11
-
-
-LOC  OBJECT CODE     LINE SOURCE TEXT
-  VALUE
-
-  00000028            00469         dmx3
-                      00470         endc
+00A4   0023           00460     banksel TXREG
+                      00461 ;    movlw   0x55
+Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
+00A5   009A           00462     movwf   TXREG
+                      00463 
+00A6   0020           00464     banksel uart_tx_head
+Message[305]: Using default destination of 1 (file).
+00A7   0AA0           00465     incf    uart_tx_head
+00A8   300F           00466     movlw   0x0f
+Message[305]: Using default destination of 1 (file).
+00A9   05A0           00467     andwf   uart_tx_head
+                      00468 
+00AA                  00469 uart_tx_tick_return
+00AA   0008           00470     return
                       00471 
-                      00472 ;  Define uart states.
-  00000000            00473 UART_STATE_BREAK    equ     000H        ;  Looking for the gap between packets.
-  00000001            00474 UART_STATE_START    equ     001H        ;  Looking for the start character.
-  00000002            00475 UART_STATE_DATA     equ     002H        ;  Reading the DMX channel data.
+                      00472 
+                      00473 ;  Routine - uart_tx_send_byte : This takes the contents of the W register
+                      00474 ;  and appends it to the tail of the queue.  Character is dropped if there
+                      00475 ;  is not any room.
                       00476 
-                      00477 ;  Routine - uart_init : This sets up the UART to receive data from the DMX
-                      00478 ;  controller.
-                      00479 
-00BC                  00480 uart_init
+00AB                  00477 uart_tx_send_byte
+                      00478 
+00AB   0020           00479     banksel uart_tx_temp
+00AC   00A2           00480     movwf   uart_tx_temp        ; Save the character to put into the queue.
                       00481 
-                      00482     ;  Setup the baud rate generator to 250K baud, the standard for DMX.
-00BC   0023           00483     banksel BAUDCON
-Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
-00BD   109F           00484     bcf     BAUDCON,WUE     ; Wake up disabled.
-Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
-00BE   101F           00485     bcf     BAUDCON,ABDEN   ; Disable autobaud.
-Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
-00BF   119F           00486     bcf     BAUDCON,BRG16   ;  See formula in documentation.
-Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
-00C0   151E           00487     bsf     TXSTA,BRGH
-Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
-00C1   019C           00488     clrf    SPBRGH
-00C2   3004           00489     movlw   0x04
-Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
-00C3   009B           00490     movwf   SPBRGL
-                      00491 
-                      00492     ;  Set receiver.
-Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
-00C4   131D           00493     bcf     RCSTA,RX9
-Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
-00C5   161D           00494     bsf     RCSTA,CREN      ; Enable reception.
-                      00495 
-                      00496     ;  Turn on the serial port.
-Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
-00C6   179D           00497     bsf     RCSTA,SPEN      ; Enables the serial ports.
-                      00498 
-                      00499     ;  Set the state to look for the start of a packet.
-00C7   0020           00500     banksel uart_state
-00C8   3000           00501     movlw   UART_STATE_BREAK
-00C9   00A1           00502     movwf   uart_state
+00AD   0A21           00482     incf    uart_tx_tail,W      ; See if there is room.
+00AE   390F           00483     andlw   0x0f
+00AF   0620           00484     xorwf   uart_tx_head,W      ; If tail+1 == head, then no room.
+00B0   1903           00485     btfsc   STATUS,Z
+00B1   2???           00486     goto    uart_tx_send_error                      ; No room so don't add it.
+                      00487 
+00B2   3070           00488     movlw   uart_tx_queue
+00B3   0084           00489     movwf   FSR0L
+00B4   0185           00490     clrf    FSR0H
+00B5   0821           00491     movfw   uart_tx_tail
+Message[305]: Using default destination of 1 (file).
+00B6   0784           00492     addwf   FSR0L
+00B7   0822           00493     movfw   uart_tx_temp
+00B8   0080           00494     movwf   INDF0
+MPASM  5.47  /USERS/MICHAEL/DEVELOPMENT/DOORB   10-30-2013  19:59:15         PAGE 11
+
+
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+Message[305]: Using default destination of 1 (file).
+00B9   0AA1           00495     incf    uart_tx_tail
+00BA   300F           00496     movlw   0x0f
+Message[305]: Using default destination of 1 (file).
+00BB   05A1           00497     andwf   uart_tx_tail
+00BC   0008           00498     return
+                      00499 
+00BD                  00500 uart_tx_send_error
+00BD   0064           00501     clrwdt
+00BE   2???           00502     goto    uart_tx_send_error
                       00503 
-                      00504     ;  Setup a debug pin for watching the state machine.
-00CA   0021           00505     banksel TRISC
-Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
-00CB   120E           00506     bcf     TRISC,TRISC4
-00CC   0020           00507     banksel PORTC
-00CD   120E           00508     bcf     PORTC,RC4
+                      00504 
+                      00505 ;  UART Module : END
+                      00506 ;
+                      00507 ; ------------------------------------------------------------------------------
+                      00508 
                       00509 
-                      00510     ;  Enable UART interrupts.
-00CE   0021           00511     banksel PIE1
-MPASM  5.47  /USERS/MICHAEL/DEVELOPMENT/DOORB   10-20-2013  15:22:49         PAGE 12
-
-
-LOC  OBJECT CODE     LINE SOURCE TEXT
-  VALUE
-
-                      00512 ;    bsf     PIE1,RCIE
-                      00513 
-                      00514     ;  Return to the caller.
-00CF   0008           00515     return;
-                      00516 
-                      00517 ;  Routine - uart_isr : Handles an interrupt from the uart.
-                      00518 
-00D0                  00519 uart_isr
+                      00510 ; ------------------------------------------------------------------------------
+                      00511 ;
+                      00512 ;  BAT Module
+                      00513 ;
+                      00514 ;  The BAT (Banged Asynchronous Transmitter) only transmits characters using
+                      00515 ;  io on the PIC.  There are two tx lines that can be selected from, RB6 is
+                      00516 ;  transmit to the Alert MP3 and RB7 is transmit to the Seeburg MP3.
+                      00517 ;
+                      00518 ;  Transmission is done at 2400 baud for MP3 boards.  This is interrupt driven
+                      00519 ;  by the timer tick which is running at the frequency for 2400 baud.
                       00520 
-                      00521     ;  See if the uart is interrupting.
-00D0   0020           00522     banksel PIR1
-00D1   1E91           00523     btfss   PIR1,RCIF
-00D2   2???           00524     goto    uart_isr_return
-                      00525 
-                      00526     ;  Check for break state and handle.
-00D3   0020           00527     banksel uart_state
-00D4   0821           00528     movfw   uart_state
-00D5   3A00           00529     xorlw   UART_STATE_BREAK
-00D6   1D03           00530     btfss   STATUS,Z
-00D7   2???           00531     goto    uart_state_check_start
-                      00532 
-                      00533     ;  STATE_BREAK : This state is looking for a first framing error.  This
-                      00534     ;  is a possible indication of the break signal at the start of each
-                      00535     ;  packet.
-                      00536 
-00D8                  00537 uart_state_break
-                      00538 
-                      00539     ;  Get the status register and see if there is a framing error.
-00D8   0023           00540     banksel RCSTA
+                      00521 ;  Define variables for the bat module.
+                      00522 
+  00000004            00523 BAT_TX_QUEUE_SIZE  equ     004H        ;  TX queue size is 4 bytes.
+                      00524 
+                      00525         cblock
+  00000026            00526         bat_bit_count
+  00000027            00527         bat_data
+  00000028            00528         bat_port
+  00000029            00529         bat_tx_head
+  0000002A            00530         bat_tx_tail
+  0000002B            00531         bat_tx_temp
+  0000002C            00532         bat_tx_queue: BAT_TX_QUEUE_SIZE
+                      00533         endc
+                      00534 
+                      00535 ;  Routine - bat_init : Sets up the ports for transmitting.  Initializes
+                      00536 ;  variables used to transmit.
+                      00537 
+00BF                  00538 bat_init
+                      00539 
+                      00540     ;  Turn the tx lines on as outputs and set them.
+00BF   0020           00541     banksel PORTB
+00C0   160D           00542     bsf     PORTB,RB4
+00C1   170D           00543     bsf     PORTB,RB6
+00C2   0021           00544     banksel TRISB
 Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
-00D9   1D1D           00541     btfss   RCSTA,FERR
-00DA   2???           00542     goto    uart_state_break_discard
-                      00543 
-                      00544     ;  We have a framing error so next state is start where we look for
-                      00545     ;  a start code.
-00DB   0020           00546     banksel uart_state
-00DC   3001           00547     movlw   UART_STATE_START
-00DD   00A1           00548     movwf   uart_state
-                      00549 
-                      00550     ;  Indicate that we have a framing error.
-00DE   0020           00551     banksel PORTC
-00DF   160E           00552     bsf     PORTC,4
-00E0   120E           00553     bcf     PORTC,4
-00E1   2???           00554     goto    uart_isr_return
-                      00555 
-                      00556     ;  If we received a good data byte, we need to discard it.  We do this
-                      00557     ;  until we get a framing error.
-00E2                  00558 uart_state_break_discard
+MPASM  5.47  /USERS/MICHAEL/DEVELOPMENT/DOORB   10-30-2013  19:59:15         PAGE 12
+
+
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+00C3   120D           00545     bcf     TRISB,TRISB4
+Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
+00C4   130D           00546     bcf     TRISB,TRISB6
+                      00547 
+                      00548     ;  Reset variables.
+00C5   0020           00549     banksel bat_bit_count
+00C6   01A6           00550     clrf    bat_bit_count
+                      00551 
+                      00552     ;  Setup the debug port, PORTA, pin 2.
+00C7   0021           00553     banksel TRISA
+Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
+00C8   110C           00554     bcf     TRISA,TRISA2
+00C9   0020           00555     banksel PORTA
+00CA   110C           00556     bcf     PORTA,RC2
+                      00557 
+00CB   0008           00558     return
                       00559 
-                      00560     ;  Read the data byte and exit.
-Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
-00E2   0819           00561     movfw   RCREG
-00E3   2???           00562     goto    uart_isr_return
-MPASM  5.47  /USERS/MICHAEL/DEVELOPMENT/DOORB   10-20-2013  15:22:49         PAGE 13
-
-
-LOC  OBJECT CODE     LINE SOURCE TEXT
-  VALUE
-
+                      00560 ;  Routine - bat_set_port : The W register should contain 0x40 to set the
+                      00561 ;  port for the Alert MP3 player and 0x80 to set the port for the Seeburg MP3
+                      00562 ;  player.
                       00563 
-                      00564     ;  Check for the start state.
-00E4                  00565 uart_state_check_start
-00E4   0020           00566     banksel uart_state
-00E5   0821           00567     movfw   uart_state
-00E6   3A01           00568     xorlw   UART_STATE_START
-00E7   1D03           00569     btfss   STATUS,Z
-00E8   2???           00570     goto    uart_state_check_data
-                      00571 
-                      00572     ;  STATE_START : This is the state that looks for the start byte.
-                      00573     ;  Discard any framing errors.  When a byte is received without an error,
-                      00574     ;  it must be a "00H" and if not, we go back to looking for framing errors.
-                      00575 
-00E9                  00576 uart_state_start
-                      00577 
-                      00578     ;  Check the status of the receiver.  If we have framing error, return.
-00E9   0023           00579     banksel RCREG
-Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
-00EA   1D1D           00580     btfss   RCSTA,FERR
-00EB   2???           00581     goto    uart_state_start_data
+00CC                  00564 bat_set_port
+                      00565 
+00CC   0020           00566     banksel bat_port
+00CD   00A8           00567     movwf   bat_port
+00CE   0008           00568     return
+                      00569 
+                      00570 ;  Routine - bat_ready : Returns Z set if the bat interface is ready to send
+                      00571 ;  data.
+                      00572 
+00CF                  00573 bat_ready
+                      00574 
+00CF   0020           00575     banksel bat_bit_count
+00D0   0826           00576     movfw   bat_bit_count
+00D1   0008           00577     return
+                      00578 
+                      00579 ;  Routine - bat_tick : Handles the bit sending on the specified port.
+                      00580 
+00D2                  00581 bat_tick
                       00582 
-                      00583     ;  We have a framing error.  Read the data and return from the isr.
-Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
-00EC   0819           00584     movfw   RCREG
-00ED   2???           00585     goto    uart_isr_return
-                      00586 
-                      00587     ;  We must have a good data byte so see if it is the 00H start byte.
-00EE                  00588 uart_state_start_data
-Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
-00EE   0819           00589     movfw   RCREG
-00EF   1903           00590     btfsc   STATUS,Z
-00F0   2???           00591     goto    uart_state_start_detected
-                      00592 
-                      00593     ;  We did not find the start byte so reset to the break state.
-00F1   0020           00594     banksel uart_state
-00F2   3000           00595     movlw   UART_STATE_BREAK
-00F3   00A1           00596     movwf   uart_state
-00F4   2???           00597     goto    uart_isr_return
-                      00598 
-                      00599     ;  We found the start byte.  Now it's time to read all 512 bytes of data.
-00F5                  00600 uart_state_start_detected
-                      00601 
-00F5   0020           00602     banksel uart_state
-00F6   01A2           00603     clrf    uart_count_low
-00F7   01A3           00604     clrf    uart_count_high
+                      00583     ; If the bit count is 0, see if there is another byte to send.
+00D2   0020           00584     banksel bat_bit_count
+00D3   0826           00585     movfw   bat_bit_count
+00D4   1D03           00586     btfss   STATUS,Z
+00D5   2???           00587     goto    bat_tick_send_start
+                      00588 
+                      00589     ; If no characters in the queue, return.
+00D6   0020           00590     banksel bat_tx_head
+00D7   0829           00591     movfw   bat_tx_head
+00D8   062A           00592     xorwf   bat_tx_tail,W
+00D9   1903           00593     btfsc   STATUS,Z
+00DA   0008           00594     return
+                      00595 
+MPASM  5.47  /USERS/MICHAEL/DEVELOPMENT/DOORB   10-30-2013  19:59:15         PAGE 13
+
+
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+                      00596     ; If there is another byte, then start it up.
+                      00597     ; Send next character then remove it from the queue.
+00DB   0020           00598     banksel bat_tx_queue
+00DC   302C           00599     movlw   bat_tx_queue
+00DD   0084           00600     movwf   FSR0L
+00DE   0185           00601     clrf    FSR0H
+00DF   0829           00602     movfw   bat_tx_head
+Message[305]: Using default destination of 1 (file).
+00E0   0784           00603     addwf   FSR0L
+00E1   0800           00604     movfw   INDF0
                       00605 
-00F8   3002           00606     movlw   UART_STATE_DATA
-00F9   00A1           00607     movwf   uart_state
-                      00608 
-                      00609     ;  Indicate that we have found the start code.
-00FA   0020           00610     banksel PORTC
-00FB   160E           00611     bsf     PORTC,4
-00FC   120E           00612     bcf     PORTC,4
-MPASM  5.47  /USERS/MICHAEL/DEVELOPMENT/DOORB   10-20-2013  15:22:49         PAGE 14
+00E2   2???           00606     call    bat_send
+                      00607 
+00E3   0020           00608     banksel bat_tx_queue
+Message[305]: Using default destination of 1 (file).
+00E4   0AA9           00609     incf    bat_tx_head
+00E5   3003           00610     movlw   BAT_TX_QUEUE_SIZE - 1
+Message[305]: Using default destination of 1 (file).
+00E6   05A9           00611     andwf   bat_tx_head
+00E7   0008           00612     return
+                      00613 
+                      00614 ;    ; Turn off the lines.
+                      00615 ;    banksel PORTB
+                      00616 ;    bsf     PORTB,RC4
+                      00617 ;    bsf     PORTB,RC6
+                      00618 ;    return
+                      00619 
+                      00620 ;bat_tick_send_startx
+                      00621 ;
+                      00622 ;    movlw   1
+                      00623 ;    xorwf   bat_bit_count,W
+                      00624 ;    btfss   STATUS,Z
+                      00625 ;    goto    bat_tick_send_start
+                      00626 ;
+                      00627 ;    ; Set the stop bit.
+                      00628 ;    banksel PORTB
+                      00629 ;    bsf     STATUS,C
+                      00630 ;    goto    bat_tick_set
+                      00631 
+00E8                  00632 bat_tick_send_start
+                      00633 
+                      00634     ; If the bit count is 10, then do the start bit.
+00E8   300A           00635     movlw   0x0a
+00E9   0626           00636     xorwf   bat_bit_count,W
+00EA   1D03           00637     btfss   STATUS,Z
+00EB   2???           00638     goto    bat_tick_send_stop
+                      00639 
+                      00640     ; Set the start bit.
+00EC   0020           00641     banksel PORTA
+00ED   150C           00642     bsf     PORTA,RA2
+00EE   110C           00643     bcf     PORTA,RA2
+                      00644 
+00EF   1003           00645     bcf     STATUS,C
+MPASM  5.47  /USERS/MICHAEL/DEVELOPMENT/DOORB   10-30-2013  19:59:15         PAGE 14
 
 
 LOC  OBJECT CODE     LINE SOURCE TEXT
   VALUE
 
-00FD   160E           00613     bsf     PORTC,4
-00FE   120E           00614     bcf     PORTC,4
-                      00615 
-00FF   2???           00616     goto    uart_isr_return
-                      00617 
-                      00618     ;  Looking for a start character, skipping framing errors.  If first
-                      00619     ;  data received without error is not 00H, then go back to state break.
-0100                  00620 uart_state_check_data
-0100   0020           00621     banksel uart_state
-0101   0821           00622     movfw   uart_state
-0102   3A02           00623     xorlw   UART_STATE_DATA
-0103   1D03           00624     btfss   STATUS,Z
-0104   2???           00625     goto    uart_state_error
-                      00626 
-                      00627     ;  STATE_DATA : This state reads 512 bytes of data and then starts looking
-                      00628     ;  for the next DMX packet.
-0105                  00629 uart_state_data
-                      00630 
-                      00631     ;  Check for a framing error.  If we have one, reset to the break state.
-0105   0023           00632     banksel RCSTA
-Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
-0106   191D           00633     btfsc   RCSTA,FERR
-0107   2???           00634     goto    uart_state_data_frame
-                      00635 
-                      00636     ;  We have a byte of data so read it and see if there is any more to read.
-Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
-0108   0819           00637     movfw   RCREG
-0109   0020           00638     banksel uart_data
-                      00639 ;    bcf     STATUS,C
-010A   00A4           00640     movwf   uart_data
-                      00641 ;    rrf     uart_data
-                      00642 ;    rrf     uart_data
-                      00643 
-                      00644     ;  See if we have a channel of data.
-010B   0020           00645     banksel uart_data
-010C   0822           00646     movfw   uart_count_low
-010D   0670           00647     xorwf   dmx_0_low,W
-010E   1D03           00648     btfss   STATUS,Z
-010F   2???           00649     goto    uart_state_data_dmx1
-                      00650 
-0110   0823           00651     movfw   uart_count_high
-0111   0671           00652     xorwf   dmx_0_high,W
-0112   1D03           00653     btfss   STATUS,Z
-0113   2???           00654     goto    uart_state_data_dmx1
+00F0   2???           00646     goto    bat_tick_set
+                      00647 
+00F1                  00648 bat_tick_send_stop
+                      00649 
+                      00650     ; If the bit count is 1, then do the stop bit.
+00F1   3001           00651     movlw   1
+00F2   0626           00652     xorwf   bat_bit_count,W
+00F3   1D03           00653     btfss   STATUS,Z
+00F4   2???           00654     goto    bat_tick_send_data
                       00655 
-                      00656     ;  Move the data to the dmx0 slot.
-0114   0824           00657     movfw   uart_data
-                      00658 ;    iorlw   0C0H
-0115   00A5           00659     movwf   dmx0
+                      00656     ; Set the stop bit.
+00F5   0020           00657     banksel PORTB
+00F6   1403           00658     bsf     STATUS,C
+00F7   2???           00659     goto    bat_tick_set
+                      00660 
+00F8                  00661 bat_tick_send_data
+                      00662 
+                      00663     ; Get the next bit to send.
+00F8   0020           00664     banksel bat_data
 Message[305]: Using default destination of 1 (file).
-0116   09A5           00660     comf    dmx0
-                      00661 
-0117                  00662 uart_state_data_dmx1
-MPASM  5.47  /USERS/MICHAEL/DEVELOPMENT/DOORB   10-20-2013  15:22:49         PAGE 15
-
-
-LOC  OBJECT CODE     LINE SOURCE TEXT
-  VALUE
-
-                      00663 
-                      00664     ;  See if we have channel 1 data.
-0117   0822           00665     movfw   uart_count_low
-0118   0672           00666     xorwf   dmx_1_low,W
-0119   1D03           00667     btfss   STATUS,Z
-011A   2???           00668     goto    uart_state_data_dmx2
+00F9   0CA7           00665     rrf     bat_data
+00FA   2???           00666     goto    bat_tick_set
+                      00667 
+00FB                  00668 bat_tick_set
                       00669 
-011B   0823           00670     movfw   uart_count_high
-011C   0673           00671     xorwf   dmx_1_high,W
-011D   1D03           00672     btfss   STATUS,Z
-011E   2???           00673     goto    uart_state_data_dmx2
+                      00670     ; Based on the value of the carry, either clear or set the proper port.
+00FB   0020           00671     banksel PORTA
+00FC   150C           00672     bsf     PORTA,RA2
+00FD   110C           00673     bcf     PORTA,RA2
                       00674 
-                      00675     ;  Move the data to the dmx0 slot.
-011F   0824           00676     movfw   uart_data
-                      00677 ;    iorlw   0C0H
-0120   00A6           00678     movwf   dmx1
+00FE   0020           00675     banksel bat_bit_count
 Message[305]: Using default destination of 1 (file).
-0121   09A6           00679     comf    dmx1
-                      00680 
-0122                  00681 uart_state_data_dmx2
-                      00682 
-                      00683     ;  See if we have channel2 data.
-0122   0822           00684     movfw   uart_count_low
-0123   0674           00685     xorwf   dmx_2_low,W
-0124   1D03           00686     btfss   STATUS,Z
-0125   2???           00687     goto    uart_state_data_dmx3
-                      00688 
-0126   0823           00689     movfw   uart_count_high
-0127   0675           00690     xorwf   dmx_2_high,W
-0128   1D03           00691     btfss   STATUS,Z
-0129   2???           00692     goto    uart_state_data_dmx3
-                      00693 
-                      00694     ;  Move the data to the dmx0 slot.
-012A   0824           00695     movfw   uart_data
-                      00696 ;    iorlw   0C0H
-012B   00A7           00697     movwf   dmx2
-Message[305]: Using default destination of 1 (file).
-012C   09A7           00698     comf    dmx2
-                      00699 
-012D                  00700 uart_state_data_dmx3
-                      00701 
-                      00702     ;  See if we have channel 3 data.
-012D   0822           00703     movfw   uart_count_low
-012E   0676           00704     xorwf   dmx_3_low,W
-012F   1D03           00705     btfss   STATUS,Z
-0130   2???           00706     goto    uart_state_data_inc
-                      00707 
-0131   0823           00708     movfw   uart_count_high
-0132   0677           00709     xorwf   dmx_3_high,W
-0133   1D03           00710     btfss   STATUS,Z
-0134   2???           00711     goto    uart_state_data_inc
-                      00712 
-                      00713     ;  Move the data to the dmx0 slot.
-MPASM  5.47  /USERS/MICHAEL/DEVELOPMENT/DOORB   10-20-2013  15:22:49         PAGE 16
+00FF   03A6           00676     decf    bat_bit_count       ; Always decrement the counter.
+                      00677 
+0100   1C03           00678     btfss   STATUS,C
+0101   2???           00679     goto    bat_send_1
+0102   2???           00680     goto    bat_send_0
+                      00681 
+0103                  00682 bat_send_0
+0103   0020           00683     banksel bat_port
+0104   1E28           00684     btfss   bat_port,4
+0105   2???           00685     goto    bat_send_0_alert
+0106   2???           00686     goto    bat_send_0_seeburg
+                      00687 
+0107                  00688 bat_send_0_alert
+0107   0020           00689     banksel PORTB
+0108   170D           00690     bsf     PORTB,6
+0109   0008           00691     return
+                      00692 
+010A                  00693 bat_send_0_seeburg
+010A   0020           00694     banksel PORTB
+010B   160D           00695     bsf     PORTB,4
+010C   0008           00696     return
+MPASM  5.47  /USERS/MICHAEL/DEVELOPMENT/DOORB   10-30-2013  19:59:15         PAGE 15
 
 
 LOC  OBJECT CODE     LINE SOURCE TEXT
   VALUE
 
-0135   0824           00714     movfw   uart_data
-                      00715 ;    iorlw   0C0H
-0136   00A8           00716     movwf   dmx3
-Message[305]: Using default destination of 1 (file).
-0137   09A8           00717     comf    dmx3
-                      00718 
+                      00697 
+010D                  00698 bat_send_1
+010D   0020           00699     banksel bat_port
+010E   1E28           00700     btfss   bat_port,4
+010F   2???           00701     goto    bat_send_1_alert
+0110   2???           00702     goto    bat_send_1_seeburg
+                      00703 
+0111                  00704 bat_send_1_alert
+0111   0020           00705     banksel PORTB
+0112   130D           00706     bcf     PORTB,6
+0113   0008           00707     return
+                      00708 
+0114                  00709 bat_send_1_seeburg
+0114   0020           00710     banksel PORTB
+0115   120D           00711     bcf     PORTB,4
+0116   0008           00712     return
+                      00713 
+                      00714 ;  Routine - bat_send : Sends the byte in the W register.  Actually, it sets
+                      00715 ;  the data into the driver and sets the bit counter to 10.  1 stop, 1 start
+                      00716 ;  and 8 data bits.  All the sending is done with the tick routine.
+                      00717 
+0117                  00718 bat_send
                       00719 
-0138                  00720 uart_state_data_inc
-                      00721 
-0138   0020           00722     banksel uart_state
+0117   0020           00720     banksel bat_data
+0118   00A7           00721     movwf   bat_data
+0119   300A           00722     movlw   0x0a
+011A   00A6           00723     movwf   bat_bit_count
+011B   0008           00724     return
+                      00725 
+                      00726 ;  Routine - bat_tx_send_byte : This takes the contents of the W register
+                      00727 ;  and appends it to the tail of the queue.  Character is dropped if there
+                      00728 ;  is not any room.
+                      00729 
+011C                  00730 bat_tx_send_byte
+                      00731 
+011C   0020           00732     banksel bat_tx_temp
+011D   00AB           00733     movwf   bat_tx_temp        ; Save the character to put into the queue.
+                      00734 
+011E   0A2A           00735     incf    bat_tx_tail,W      ; See if there is room.
+011F   3903           00736     andlw   BAT_TX_QUEUE_SIZE - 1
+0120   0629           00737     xorwf   bat_tx_head,W      ; If tail+1 == head, then no room.
+0121   1903           00738     btfsc   STATUS,Z
+0122   2???           00739     goto    bat_tx_send_error                      ; No room so don't add it.
+                      00740 
+0123   302C           00741     movlw   bat_tx_queue
+0124   0084           00742     movwf   FSR0L
+0125   0185           00743     clrf    FSR0H
+0126   082A           00744     movfw   bat_tx_tail
 Message[305]: Using default destination of 1 (file).
-0139   0FA2           00723     incfsz  uart_count_low
-013A   2???           00724     goto    uart_state_data_noinc
+0127   0784           00745     addwf   FSR0L
+0128   082B           00746     movfw   bat_tx_temp
+0129   0080           00747     movwf   INDF0
 Message[305]: Using default destination of 1 (file).
-013B   0AA3           00725     incf    uart_count_high
-                      00726 
-013C                  00727 uart_state_data_noinc
-                      00728 
-013C   0823           00729     movfw   uart_count_high
-013D   3A02           00730     xorlw   002H
-013E   1D03           00731     btfss   STATUS,Z
-013F   2???           00732     goto    uart_isr_return
-                      00733 
-                      00734     ;  We have read 512 bytes.
-0140   3000           00735     movlw   UART_STATE_BREAK
-0141   00A1           00736     movwf   uart_state
-                      00737 
-                      00738     ;  Indicate that we have found all 512 channels of data.
-0142   0020           00739     banksel PORTC
-0143   160E           00740     bsf     PORTC,4
-0144   120E           00741     bcf     PORTC,4
-0145   160E           00742     bsf     PORTC,4
-0146   120E           00743     bcf     PORTC,4
-0147   160E           00744     bsf     PORTC,4
-0148   120E           00745     bcf     PORTC,4
-                      00746 
-                      00747     ;  Clear the watchdog timer.  If we don't get a packet, we reset.
-0149   0064           00748     clrwdt
-                      00749 
-014A   2???           00750     goto    uart_isr_return
-                      00751 
-                      00752     ;  A framing error was detected.  Reset the state machine.
-014B                  00753 uart_state_data_frame
-014B   0020           00754     banksel uart_state
-014C   3000           00755     movlw   UART_STATE_BREAK
-014D   00A1           00756     movwf   uart_state
-014E   2???           00757     goto    uart_isr_return
-                      00758 
-                      00759     ;  A state error was detected.  Not good.
-014F                  00760 uart_state_error
-014F   0020           00761     banksel PORTC
-0150   160E           00762     bsf     PORTC,4
-0151   120E           00763     bcf     PORTC,4
-MPASM  5.47  /USERS/MICHAEL/DEVELOPMENT/DOORB   10-20-2013  15:22:49         PAGE 17
+MPASM  5.47  /USERS/MICHAEL/DEVELOPMENT/DOORB   10-30-2013  19:59:15         PAGE 16
 
 
 LOC  OBJECT CODE     LINE SOURCE TEXT
   VALUE
 
-0152   2???           00764     goto    uart_state_error
-                      00765 
-0153                  00766 uart_isr_return
-                      00767     ;  Return to the caller.
-0153   0008           00768     return
-                      00769 
-                      00770 ;  Routine - uart_isr_set_data_state : This is a routine that determines the
-                      00771 ;  next data state based on whether we should be grabbing channel data or not.
-                      00772 ;  It just
-                      00773 
-                      00774 
-                      00775 ;  UART Module : END
-                      00776 ;
-                      00777 ; ------------------------------------------------------------------------------
-                      00778 
+012A   0AAA           00748     incf    bat_tx_tail
+012B   3003           00749     movlw   BAT_TX_QUEUE_SIZE - 1
+Message[305]: Using default destination of 1 (file).
+012C   05AA           00750     andwf   bat_tx_tail
+012D   0008           00751     return
+                      00752 
+012E                  00753 bat_tx_send_error
+012E   0064           00754     clrwdt
+012F   2???           00755     goto    bat_tx_send_error
+                      00756 
+                      00757 
+                      00758 ;  BAT Module : END
+                      00759 ;
+                      00760 ; ------------------------------------------------------------------------------
+                      00761 
+                      00762 
+                      00763 ; ------------------------------------------------------------------------------
+                      00764 ;
+                      00765 ;  Timer 1 Module
+                      00766 ;
+                      00767 ;  The timer 1 module provides the main timing for the controller.  All RS-232
+                      00768 ;  communication is setup for 12400 baud.  This is slow but the TX lines to the
+                      00769 ;  MP3 player are 'bit banged' so the lower baud rate is easier to manage.
+                      00770 ;  The messages are short and delay for a three byte command would be 12.5 ms,
+                      00771 ;  which is plenty fast for this application.
+                      00772 
+                      00773 ;  Define variables for the timer 1 module.
+                      00774         cblock
+  00000030            00775         timerlo     ;  Low byte of the timer counter.
+  00000031            00776                 timerhi     ;  High byte of the timer counter.
+  00000032            00777         timerflags  ;  Flags for use in timer module.
+                      00778         endc
                       00779 
-                      00780 ; ------------------------------------------------------------------------------
-                      00781 ;
-                      00782 ;  Timer 1 Module
-                      00783 ;
-                      00784 ;  This module handles the timing for the pwm of the channels.  It's resolution
-                      00785 ;  is set for 64 levels based on a 1/120 second period.  The timer will count
-                      00786 ;  until reset by the zero crossing detection.
-                      00787 
-                      00788 ;  Define variables for the timer 1 module.
-                      00789         cblock
-  00000029            00790         level               ;  Holds the current level 0 to 63.
-                      00791 ;               mstimerh        ;  High byte of millisceond timer.
-                      00792 ;        mstimertick ;  Bit 0 set if ms tick code should run.
-                      00793         endc
-                      00794 
-                      00795 ;  The reload value is 65536-2604 = 0F5D4H.  This will cause an interrupt on
-                      00796 ;  overflow every 1/120/64 seconds ... 130.2uS.  Based on 20Mhz oscillator.
-  000000EF            00797 timer_reload_low        equ             0efH        ; 0F4 for 64 levels
-  000000FD            00798 timer_reload_high       equ             0fDH        ; 0F5 for 64 levels
-                      00799 
-                      00800 ;  Routine - timer_init : Set up the timer to give us an interrupt every 1ms.
-                      00801 ;  The isr code for this must be VERY lightweight.
-                      00802 
-0154                  00803 timer_init
+                      00780 ;  Timer value calculated as 65536-(20,000,000/2400) = 57202 DF72 hex.
+                      00781 
+  00000072            00782 timer_reload_low        equ             072H
+  000000DF            00783 timer_reload_high       equ             0DFH
+                      00784 
+  00000000            00785 timer_flag_tick     equ     0           ; Bit 0 is set for timer tick code.
+                      00786 
+                      00787 ;  Routine - timer_init : Set up the timer to give us an interrupt every 1ms.
+                      00788 ;  The isr code for this must be VERY lightweight.
+                      00789 
+0130                  00790 timer_init
+                      00791 
+0130   0020           00792     banksel T1CON
+0131   1718           00793     bsf     T1CON,TMR1CS0    ; Select internal clock.  System Clock.
+0132   1398           00794     bcf     T1CON,TMR1CS1
+0133   1518           00795     bsf     T1CON,NOT_T1SYNC  ; Not required for internal clock.
+0134   1218           00796     bcf     T1CON,T1CKPS0   ; Prescaler 1:1
+0135   1298           00797     bcf     T1CON,T1CKPS1
+                      00798 
+0136   0020           00799     banksel T1GCON
+MPASM  5.47  /USERS/MICHAEL/DEVELOPMENT/DOORB   10-30-2013  19:59:15         PAGE 17
+
+
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+0137   1399           00800     bcf     T1GCON,TMR1GE
+                      00801 
+0138   01B0           00802         clrf    timerlo         ; Clear the timer counter.
+0139   01B1           00803         clrf    timerhi
                       00804 
-0154   0020           00805     banksel T1CON
-0155   1718           00806     bsf     T1CON,TMR1CS0    ; Select internal clock.  System Clock.
-0156   1398           00807     bcf     T1CON,TMR1CS1
-0157   1518           00808     bsf     T1CON,NOT_T1SYNC  ; Not required for internal clock.
-0158   1218           00809     bcf     T1CON,T1CKPS0   ; Prescaler 1:1
-0159   1298           00810     bcf     T1CON,T1CKPS1
-                      00811 
-015A   0020           00812     banksel T1GCON
-015B   1399           00813     bcf     T1GCON,TMR1GE
-                      00814 
-015C   01A9           00815         clrf    level
-                      00816 ;       clrf    mstimerh
-MPASM  5.47  /USERS/MICHAEL/DEVELOPMENT/DOORB   10-20-2013  15:22:49         PAGE 18
-
-
-LOC  OBJECT CODE     LINE SOURCE TEXT
-  VALUE
-
-                      00817 
-015D   30FD           00818     movlw   timer_reload_high
-015E   0097           00819     movwf   TMR1H
-015F   30EF           00820     movlw   timer_reload_low
-0160   0096           00821     movwf   TMR1L
-                      00822 
-0161   1011           00823         bcf             PIR1,TMR1IF                             ;  Clear any pending interrupt.
-0162   0021           00824         banksel PIE1
+013A   30DF           00805     movlw   timer_reload_high       ;  Reload the timer for next value.
+013B   0097           00806     movwf   TMR1H
+013C   3072           00807     movlw   timer_reload_low
+013D   0096           00808     movwf   TMR1L
+                      00809 
+013E   1011           00810         bcf             PIR1,TMR1IF                             ;  Clear any pending interrupt.
+013F   0021           00811         banksel PIE1
 Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
-0163   1411           00825         bsf             PIE1,TMR1IE                             ;  Enable the interrupts
-0164   0020           00826         banksel T1CON
-0165   1418           00827         bsf             T1CON,TMR1ON                    ;  Start the timer.
+0140   1411           00812         bsf             PIE1,TMR1IE                             ;  Enable the interrupts
+0141   0020           00813         banksel T1CON
+0142   1418           00814         bsf             T1CON,TMR1ON                    ;  Start the timer.
+                      00815 
+                      00816     ;  Clear timer tick code flag waiting for first full tick.
+0143   0020           00817     banksel timerflags
+0144   1032           00818     bcf     timerflags,timer_flag_tick
+                      00819 
+                      00820     ;  Setup the debug port, PORTC, pin 7.
+0145   0021           00821     banksel TRISC
+Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
+0146   138E           00822     bcf     TRISC,TRISC7
+0147   0020           00823     banksel PORTC
+0148   138E           00824     bcf     PORTC,RC7
+                      00825 
+0149   0008           00826         return
+                      00827 
                       00828 
-                      00829     ;  Setup the debug port, PORTC, pin 7.
-0166   0021           00830     banksel TRISC
-Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
-0167   138E           00831     bcf     TRISC,TRISC7
-0168   0020           00832     banksel PORTC
-0169   138E           00833     bcf     PORTC,RC7
-                      00834 
-016A   0008           00835         return
-                      00836 
-                      00837 
-                      00838 ;  Routine - timer_isr : This is called from the interrupt routine if a timer1
-                      00839 ;  interrupt is detected.
-                      00840 
-016B                  00841 timer_isr
-                      00842 
-                      00843         ;  Check for a timer interrupt.
-016B   0020           00844         banksel PIR1
-016C   1C11           00845         btfss   PIR1,TMR1IF                             ;  Check for timer 1 interrupt.
-016D   2???           00846         goto    timer_isr_return                ;  If not, return.
-                      00847 
-016E   0020           00848     banksel T1CON
-016F   1018           00849         bcf             T1CON,TMR1ON                    ;  Turn off the timer.
-                      00850 
-                      00851     ; Reload the timer for the next cycle.
-0170   0020           00852     banksel TMR1L
-0171   30EF           00853         movlw   timer_reload_low                ;  Get low timer value.
-0172   0096           00854         movwf   TMR1L                                   ;  Set low byte.
-0173   30FD           00855         movlw   timer_reload_high               ;  Get high timer value.
-0174   0097           00856         movwf   TMR1H                                   ;  Set high byte.
-                      00857 
-0175   0020           00858     banksel PIR1
-0176   1011           00859         bcf             PIR1,TMR1IF                             ;  Clear any pending interrupt.
-0177   0020           00860     banksel T1CON
-0178   1418           00861         bsf             T1CON,TMR1ON                    ;  Turn timer back on.
-                      00862 
-                      00863     ; pulse the timer debug pin.
-0179   0020           00864     banksel PORTC
-017A   178E           00865     bsf     PORTC,RC7
-017B   138E           00866     bcf     PORTC,RC7
+                      00829 ;  Routine - timer_isr : This is called from the interrupt routine if a timer1
+                      00830 ;  interrupt is detected.
+                      00831 
+014A                  00832 timer_isr
+                      00833 
+                      00834         ;  Check for a timer interrupt.
+014A   0020           00835         banksel PIR1
+014B   1C11           00836         btfss   PIR1,TMR1IF                             ;  Check for timer 1 interrupt.
+014C   2???           00837         goto    timer_isr_return                ;  If not, return.
+                      00838 
+014D   0020           00839     banksel T1CON
+014E   1018           00840         bcf             T1CON,TMR1ON                    ;  Turn off the timer.
+                      00841 
+                      00842     ; Reload the timer for the next cycle.
+014F   0020           00843     banksel TMR1L
+0150   3072           00844         movlw   timer_reload_low                ;  Get low timer value.
+0151   0096           00845         movwf   TMR1L                                   ;  Set low byte.
+0152   30DF           00846         movlw   timer_reload_high               ;  Get high timer value.
+0153   0097           00847         movwf   TMR1H                                   ;  Set high byte.
+                      00848 
+0154   0020           00849     banksel PIR1
+0155   1011           00850         bcf             PIR1,TMR1IF                             ;  Clear any pending interrupt.
+MPASM  5.47  /USERS/MICHAEL/DEVELOPMENT/DOORB   10-30-2013  19:59:15         PAGE 18
+
+
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+0156   0020           00851     banksel T1CON
+0157   1418           00852         bsf             T1CON,TMR1ON                    ;  Turn timer back on.
+                      00853 
+                      00854     ; pulse the timer debug pin.
+0158   0020           00855     banksel PORTC
+0159   178E           00856     bsf     PORTC,RC7
+015A   138E           00857     bcf     PORTC,RC7
+                      00858 
+                      00859     ; Increment the timer counter.
+Message[305]: Using default destination of 1 (file).
+015B   0AB0           00860     incf    timerlo
+015C   1903           00861     btfsc   STATUS,Z
+Message[305]: Using default destination of 1 (file).
+015D   0AB1           00862     incf    timerhi
+                      00863 
+                      00864     ; Set the timer tick flag.
+015E   0020           00865     banksel timerflags
+015F   1432           00866     bsf     timerflags,timer_flag_tick
                       00867 
-MPASM  5.47  /USERS/MICHAEL/DEVELOPMENT/DOORB   10-20-2013  15:22:49         PAGE 19
-
-
-LOC  OBJECT CODE     LINE SOURCE TEXT
-  VALUE
-
-                      00868     ; Turn off all the triac drivers.
-017C   2???           00869     call    pwm_off
+                      00868     ; Call routines that need to run ON THE TICK.
+0160   2???           00869     call    bat_tick
                       00870 
-                      00871     ; Increment the level in the cycle.  If we hit 255, then hold the
-                      00872     ; counter there and disable setting any drivers.
-017D   0020           00873     banksel level
-Message[305]: Using default destination of 1 (file).
-017E   0AA9           00874     incf    level
-017F   1D03           00875     btfss   STATUS,Z
-0180   2???           00876     goto    timer_isr_setpwm
+0161                  00871 timer_isr_return
+0161   0008           00872         return
+                      00873 
+                      00874 ;  Timer Module : END
+                      00875 ;
+                      00876 ; ------------------------------------------------------------------------------
                       00877 
-Message[305]: Using default destination of 1 (file).
-0181   03A9           00878     decf    level
-0182   2???           00879     goto    timer_isr_return
-                      00880 
-                      00881     ; Set the triac drivers for the new level.
-0183                  00882 timer_isr_setpwm
-0183   2???           00883     call    pwm_set_channels                ;  Set the channel outputs
-                      00884 
-0184                  00885 timer_isr_return
-0184   0008           00886         return
-                      00887 
-                      00888 ;  Routine - timer_zero : This resets the timer so that it's synchronized
-                      00889 ;  with the AC line.
-0185                  00890 timer_zero
-0185   0020           00891     banksel T1CON
-0186   1018           00892     bcf         T1CON,TMR1ON                    ;  Turn off the timer.
-                      00893 
-0187   30EF           00894         movlw   timer_reload_low                ;  Get low timer value.
-0188   0096           00895         movwf   TMR1L                                   ;  Set low byte.
-0189   30FD           00896         movlw   timer_reload_high               ;  Get high timer value.
-018A   0097           00897         movwf   TMR1H                                   ;  Set high byte.
-                      00898 
-018B   0020           00899     banksel PIR1
-018C   1011           00900         bcf             PIR1,TMR1IF                             ;  Clear any pending interrupt.
-018D   0020           00901     banksel T1CON
-018E   1418           00902         bsf             T1CON,TMR1ON                    ;  Turn timer back on.
-                      00903 
-018F   0020           00904     banksel level                   ;  Reset the level back to 0.
-0190   01A9           00905     clrf    level
-                      00906 
-0191   0008           00907     return
-                      00908 
-                      00909 ;  Timer Module : END
-                      00910 ;
-                      00911 ; ------------------------------------------------------------------------------
-                      00912 
-                      00913 
-                      00914 ;  Routine - pwm_init : This initializes the pulse width modulation module.
-                      00915 
-0192                  00916 pwm_init
-                      00917 
-                      00918     ;  Set the PWM bits to be outputs.
-MPASM  5.47  /USERS/MICHAEL/DEVELOPMENT/DOORB   10-20-2013  15:22:49         PAGE 20
+                      00878 
+                      00879 ; ------------------------------------------------------------------------------
+                      00880 ;
+                      00881 ;  Button Module
+                      00882 ;
+                      00883 ;  The button module watches for any changes on the RC0-3 lines and sends
+                      00884 ;  change information to the UART and back to the Mac.
+                      00885 
+  00000001            00886 DOORBELL_FRONT_MASK  equ 1<<RC0
+  00000002            00887 DOORBELL_SIDE_MASK   equ 1<<RC1
+  00000004            00888 DOORBELL_GUEST_MASK  equ 1<<RC2
+  00000008            00889 SEEBURG_SELECT_MASK  equ 1<<RC3
+                      00890 
+                      00891 ;  Define variables for the button module.
+                      00892         cblock
+  00000033            00893         button_state    ;  Last state of the buttons.
+  00000034            00894         button_current  ;  Current button state read.
+  00000035            00895         button_counter  ;  Loop counter for getting presses.
+  00000036            00896         button_shift    ;  Place to shift the changed flags.
+  00000037            00897         button_temp     ;  Temp storage.
+                      00898         endc
+                      00899 
+                      00900 ;  Routine - button_init : Sets up hardware and software to read the inputs
+                      00901 ;  from the doorbell buttons and the seeburg select signal.
+MPASM  5.47  /USERS/MICHAEL/DEVELOPMENT/DOORB   10-30-2013  19:59:15         PAGE 19
 
 
 LOC  OBJECT CODE     LINE SOURCE TEXT
   VALUE
 
-0192   0021           00919     banksel TRISA
+                      00902 
+0162                  00903 button_init
+                      00904 
+                      00905     ; Set up the lines for inputs.
+0162   0021           00906     banksel TRISC
+0163   300F           00907     movlw   DOORBELL_FRONT_MASK | DOORBELL_SIDE_MASK | DOORBELL_GUEST_MASK | SEEBURG_SELECT_MASK
 Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
-0193   128E           00920     bcf     TRISC,TRISC5
+0164   008E           00908     movwf   TRISC
+                      00909 
+                      00910     ; Set the initial state for the buttons.
+0165   0020           00911     banksel button_state
+0166   300F           00912     movlw   0x0F            ;  Assume no buttons pressed on power up.
+0167   00B3           00913     movwf   button_state
+                      00914 
+                      00915     ;  Setup the debug port, PORTC, pin 6.
+0168   0021           00916     banksel TRISC
 Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
-0194   118E           00921     bcf     TRISC,TRISC3
-Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
-0195   110C           00922     bcf     TRISA,TRISA2
-Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
-0196   108E           00923     bcf     TRISC,TRISC1
-                      00924 
-                      00925     ;  Set all the outputs to zero.
-0197   2???           00926     call    pwm_off
+0169   130E           00917     bcf     TRISC,TRISC6
+016A   0020           00918     banksel PORTC
+016B   130E           00919     bcf     PORTC,RC6
+                      00920 
+                      00921     ; That's it.  Return
+016C   0008           00922     return
+                      00923 
+                      00924 ;  Routine - button_tick : Checks to see if there are any changes on the
+                      00925 ;  input lines.  If so, a message is generate to send to the Mac.  This should
+                      00926 ;  only be called on the 1ms timer tick.
                       00927 
-                      00928     ;  Return to the caller.
-0198   0008           00929     return
-                      00930 
-                      00931 ;  Routine - pwm_clear : Turns off all 4 channels.
-0199                  00932 pwm_off
-                      00933 
-                      00934     ;  Set all the outputs to zero.
-0199   0022           00935     banksel LATC
-Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
-019A   128E           00936     bcf     LATC,RC5
-Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
-019B   118E           00937     bcf     LATC,RC3
-Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
-019C   110C           00938     bcf     LATA,RA2
-Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
-019D   108E           00939     bcf     LATC,RC1
-                      00940 
-                      00941     ;  return to the caller.
-019E   0008           00942     return
-                      00943 
-                      00944 ;  Routine - pwm_ac_sync : This should be called on each zero crossing.
-019F                  00945 pwm_sync
+016D                  00928 button_tick
+                      00929 
+                      00930     ; Read the inputs then compare to the previous state.
+016D   0020           00931     banksel PORTC
+016E   080E           00932     movfw   PORTC
+016F   390F           00933     andlw   0x0F
+0170   00B4           00934     movwf   button_current
+0171   0633           00935     xorwf   button_state,W
+0172   1903           00936     btfsc   STATUS,Z
+0173   2???           00937     goto    button_tick_return
+0174   00B6           00938     movwf   button_shift
+                      00939 
+                      00940     ; pulse the button debug pin.
+0175   0020           00941     banksel PORTC
+0176   170E           00942     bsf     PORTC,RC6
+0177   130E           00943     bcf     PORTC,RC6
+0178   170E           00944     bsf     PORTC,RC6
+0179   130E           00945     bcf     PORTC,RC6
                       00946 
-019F   2???           00947     call    timer_zero      ;  Make sure the timer gets zeroed.
-01A0   2???           00948     call    pwm_off         ;  Turn off all channels.
-01A1   2???           00949     call    pwm_set_channels    ;  Set channels since level has changed.
-01A2   0008           00950     return                  ;  Return to the caller.
-                      00951 
-                      00952 ;  Routine - pwm_set_channels : This sets the channel bits based on the
-                      00953 ;  current level.
-                      00954 
-01A3                  00955 pwm_set_channels
-                      00956 
-01A3   0020           00957     banksel dmx0
-                      00958 
-                      00959 ;    movfw   level
-                      00960 ;    sublw   0x30
-                      00961 ;    btfsc   STATUS,C
-                      00962 ;    return
-                      00963 ;
-MPASM  5.47  /USERS/MICHAEL/DEVELOPMENT/DOORB   10-20-2013  15:22:49         PAGE 21
+017A   0020           00947     banksel button_current
+017B   0834           00948     movfw   button_current
+017C   00B3           00949     movwf   button_state
+                      00950 
+                      00951     ; W has lower 4 bits set that have a change.  Get the bit numbers that
+                      00952     ; are set.
+MPASM  5.47  /USERS/MICHAEL/DEVELOPMENT/DOORB   10-30-2013  19:59:15         PAGE 20
 
 
 LOC  OBJECT CODE     LINE SOURCE TEXT
   VALUE
 
-                      00964 ;    movfw   level
-                      00965 ;    sublw   0x0f
-                      00966 ;    btfss   STATUS,C
-                      00967 ;    return
-                      00968 
-                      00969 ;    bcf     PORTC,RC5
-                      00970 ;    movfw   level
-                      00971 ;    xorlw   0x20
-                      00972 ;    btfss   STATUS,Z
-                      00973 ;    return
+017D   0020           00953     banksel button_counter
+017E   01B5           00954     clrf    button_counter
+017F                  00955 button_tick_loop
+Message[305]: Using default destination of 1 (file).
+017F   0CB6           00956     rrf     button_shift
+0180   1C03           00957     btfss   STATUS,C
+0181   2???           00958     goto    button_tick_loop_inc
+                      00959 
+                      00960     ; This bit indicates a change.  Create the second byte of message by
+                      00961     ; multiplying the count by two and setting last bit to pressed or released.
+Message[305]: Using default destination of 1 (file).
+0182   0CB4           00962     rrf     button_current
+Message[305]: Using default destination of 1 (file).
+0183   0DB5           00963     rlf     button_counter
+                      00964 
+                      00965     ; Here we create the packet to send to the host controller.
+0184   3001           00966     movlw   0x01
+0185   2???           00967     call    uart_tx_send_byte
+0186   0835           00968     movfw   button_counter
+0187   2???           00969     call    uart_tx_send_byte
+0188   0830           00970     movfw   timerlo
+0189   2???           00971     call    uart_tx_send_byte
+018A   0831           00972     movfw   timerhi
+018B   2???           00973     call    uart_tx_send_byte
                       00974 
-                      00975 ;  If the level is 255, don't bother turning on the triac.  This will allow
-                      00976 ;  for an always off condition
-                      00977 
-01A4   0F29           00978     incfsz  level,W
-01A5   2???           00979     goto    pwm_set_channels_ok
-01A6   0008           00980     return
-                      00981 
-01A7                  00982 pwm_set_channels_ok
-01A7   0825           00983     movfw   dmx0        ; Get current dmx set level.
-01A8   1D03           00984     btfss   STATUS,Z    ; If it's 0, then we are full on so always set the trigger.
-01A9   0629           00985     xorwf   level,W     ; If not 0, check to see if we are at the expected level.
-01AA   1903           00986     btfsc   STATUS,Z    ; If at level or at 0, then...
-01AB   168E           00987     bsf     PORTC,RC5   ;    set the trigger.
+                      00975     ; pulse the button debug pin.
+018C   0020           00976     banksel button_counter
+018D   0835           00977     movfw   button_counter
+018E   3A06           00978     xorlw   0x06
+018F   0020           00979     banksel PORTC
+0190   1D03           00980     btfss   STATUS,Z
+0191   2???           00981     goto    debugset
+                      00982 
+0192   130E           00983     bcf     PORTC,RC6
+0193   2???           00984     goto    debug
+                      00985 
+0194                  00986 debugset
+0194   170E           00987     bsf     PORTC,RC6
                       00988 
-01AC   0826           00989     movfw   dmx1
-01AD   1D03           00990     btfss   STATUS,Z
-01AE   0629           00991     xorwf   level,W
-01AF   1903           00992     btfsc   STATUS,Z
-01B0   158E           00993     bsf     PORTC,RC3
-                      00994 
-01B1   0827           00995     movfw   dmx2
-01B2   1D03           00996     btfss   STATUS,Z
-01B3   0629           00997     xorwf   level,W
-01B4   1903           00998     btfsc   STATUS,Z
-01B5   150C           00999     bsf     PORTA,RA2
-                      01000 
-01B6   0828           01001     movfw   dmx3
-01B7   1D03           01002     btfss   STATUS,Z
-01B8   0629           01003     xorwf   level,W
-01B9   1903           01004     btfsc   STATUS,Z
-01BA   148E           01005     bsf     PORTC,RC1
-                      01006 
-01BB   0008           01007     return
-                      01008 
-                      01009 
-                      01010 
-                      01011 ; ------------------------------------------------------------------------------
-                      01012 ;
-                      01013 ;  Start up the main program.  Call the initialization routines for each of the
-                      01014 ;  modules.
+0195                  00989 debug
+                      00990 
+                      00991     ; Undo button_state and counter.
+0195   0020           00992     banksel button_counter
+Message[305]: Using default destination of 1 (file).
+0196   0CB5           00993     rrf     button_counter
+Message[305]: Using default destination of 1 (file).
+0197   0DB4           00994     rlf     button_current
+                      00995 
+0198                  00996 button_tick_loop_inc
+Message[305]: Using default destination of 1 (file).
+0198   0CB4           00997     rrf     button_current
+0199   3004           00998     movlw   0x04
+019A   0635           00999     xorwf   button_counter,W
+MPASM  5.47  /USERS/MICHAEL/DEVELOPMENT/DOORB   10-30-2013  19:59:15         PAGE 21
+
+
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+019B   1903           01000     btfsc   STATUS,Z
+019C   2???           01001     goto    button_tick_return
+                      01002 
+Message[305]: Using default destination of 1 (file).
+019D   0AB5           01003     incf    button_counter
+019E   2???           01004     goto    button_tick_loop
+                      01005 
+019F                  01006 button_tick_return
+                      01007 ;    ; Save current button state.
+                      01008 ;    movfw   button_current
+                      01009 ;    movwf   button_state
+019F   0008           01010     return
+                      01011 
+                      01012 ;  Button Module : END
+                      01013 ;
+                      01014 ; ------------------------------------------------------------------------------
                       01015 
-01BC                  01016 boot
-MPASM  5.47  /USERS/MICHAEL/DEVELOPMENT/DOORB   10-20-2013  15:22:49         PAGE 22
-
-
-LOC  OBJECT CODE     LINE SOURCE TEXT
-  VALUE
-
-                      01017 
-                      01018     ;  Initialize the system components.
-01BC   2???           01019     call    system_init
-01BD   2???           01020     call    dmx_init
-01BE   2???           01021     call    timer_init
-01BF   2???           01022     call    uart_init
-01C0   2???           01023     call    comparator_init
-01C1   2???           01024     call    pwm_init
-                      01025 
-                      01026     ;  Start the system.
-01C2   2???           01027     call    system_start
-                      01028 
-                      01029     ;  For testing set up dmx channels.
-01C3   30C0           01030     movlw   0xc0
-01C4   00A5           01031     movwf   dmx0
-01C5   3080           01032     movlw   0x80
-01C6   00A6           01033     movwf   dmx1
-01C7   3040           01034     movlw   0x40
-01C8   00A7           01035     movwf   dmx2
-01C9   3000           01036     movlw   0x00
-01CA   00A8           01037     movwf   dmx3
-                      01038 
-                      01039 
-                      01040     ;  Start of user code.
-01CB                  01041 main
-                      01042 
-01CB   2???           01043     call    uart_isr
-01CC   2???           01044     goto    main
-01CD                  01045 main2
-01CD   2???           01046     goto    main2
-01CE   0021           01047     banksel TRISC
-                      01048  ;   bcf     TRISC,4
-Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
-01CF   128E           01049     bcf     TRISC,5
-                      01050 
+                      01016 
+                      01017 ; ------------------------------------------------------------------------------
+                      01018 ;
+                      01019 ;  Command Module
+                      01020 ;
+                      01021 ;  This module handles commands from the host processor.
+                      01022 ;  These are commands that will be sent to the MP3 boards.
+                      01023 
+                      01024 ;  Routine - command_init : This initializes the state machine that is used
+                      01025 ;  to process the commands.
+                      01026 
+01A0                  01027 command_init
+01A0   0008           01028     return
+                      01029 
+                      01030 ;  Routine - command_tick : This runs the state machine that routes commands
+                      01031 ;  to the MP3 boards.
+                      01032 
+01A1                  01033 command_tick
+                      01034 
+                      01035     ; If there are not any command bytes, then return.
+01A1   0020           01036     banksel uart_rx_head
+01A2   0823           01037     movfw   uart_rx_head
+01A3   0624           01038     xorwf   uart_rx_tail,W
+01A4   1903           01039     btfsc   STATUS,Z
+01A5   2???           01040     goto    command_tick_return
+                      01041 
+                      01042     ; If there are not three bytes, then we need to wait.
+                      01043 ;!! What to do if we never hit three characters!  Need to reset after a time
+                      01044 ;out period.
+01A6   0823           01045     movfw   uart_rx_head
+01A7   3E03           01046     addlw   3
+01A8   3903           01047     andlw   UART_RX_QUEUE_SIZE-1
+01A9   0624           01048     xorwf   uart_rx_tail,W
+01AA   1D03           01049     btfss   STATUS,Z
+01AB   2???           01050     goto    command_tick_return
                       01051 
-                      01052 
-01D0                  01053 mainlp
-01D0   0020           01054     banksel PORTC
-01D1   160E           01055     bsf     PORTC,4
-01D2   0000           01056     nop
-01D3   0000           01057     nop
-01D4   120E           01058     bcf     PORTC,4
-                      01059 ;    bcf     PORTC,5
-                      01060 
-                      01061 ;    ;  Setup the serial port.
-                      01062 ;    banksel BAUDCON
-                      01063 ;    bcf     BAUDCON,SCKP    ;  Non inverting tx for async.
-                      01064 ;    bcf     BAUDCON,WUE     ; Wake up disabled.
-                      01065 ;    bcf     BAUDCON,ABDEN   ; Disable autobaud.
-                      01066 
-                      01067     ;  Setup for transmission.
-01D5   0023           01068     banksel BAUDCON
-MPASM  5.47  /USERS/MICHAEL/DEVELOPMENT/DOORB   10-20-2013  15:22:49         PAGE 23
+MPASM  5.47  /USERS/MICHAEL/DEVELOPMENT/DOORB   10-30-2013  19:59:15         PAGE 22
 
 
 LOC  OBJECT CODE     LINE SOURCE TEXT
   VALUE
 
-Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
-01D6   139E           01069     bcf     TXSTA,CSRC      ; Clock Source Select : Don't care for async.
-Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
-01D7   131E           01070     bcf     TXSTA,TX9       ; Selects 8-bit transmissions.
-Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
-01D8   121E           01071     bcf     TXSTA,SYNC      ; Selects Asynchronous mode.
-                      01072 
-                      01073 
-                      01074     ;  Setup the Baud Rate Generator for 250K baud.
-01D9   0023           01075     banksel BAUDCON
-                      01076 ;    bcf     BAUDCON,BRG16
-                      01077 ;    bsf     TXSTA,BRGH
-                      01078 ;    clrf    SPBRGH
-                      01079 ;    movlw   0x04
-                      01080 ;    movwf   SPBRGL
-                      01081 
-                      01082 ;    bsf     RCSTA,SPEN      ; Enables the serial ports.
-                      01083 
-                      01084     ;  Get ready to send data.
-Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
-01DA   169E           01085     bsf     TXSTA,TXEN      ;  Enable transmission.
+                      01052     ; If we get here, then we need to process the command.
+01AC   01A3           01053     clrf    uart_rx_head
+01AD   01A4           01054     clrf    uart_rx_tail
+                      01055 
+                      01056     ; See what mp3 board to send this to.
+01AE   0861           01057     movfw   uart_rx_queue+1
+01AF   3A01           01058     xorlw   1
+01B0   1D03           01059     btfss   STATUS,Z
+01B1   2???           01060     goto    command_seeburg_mp3
+                      01061 
+01B2                  01062 command_alert_mp3
+01B2   3040           01063     movlw   0x40
+01B3   2???           01064     call    bat_set_port
+01B4   3074           01065     movlw   0x74            ; 't'
+01B5   2???           01066     call    bat_tx_send_byte
+01B6   0862           01067     movfw   uart_rx_queue+2
+01B7   2???           01068     call    bat_tx_send_byte
+01B8   2???           01069     goto    command_tick_return
+                      01070 
+01B9                  01071 command_seeburg_mp3
+01B9   3010           01072     movlw   0x10
+01BA   2???           01073     call    bat_set_port
+01BB   3074           01074     movlw   0x74            ; 't'
+01BC   2???           01075     call    bat_tx_send_byte
+01BD   0862           01076     movfw   uart_rx_queue+2
+01BE   2???           01077     call    bat_tx_send_byte
+01BF   2???           01078     goto    command_tick_return
+                      01079 
+01C0                  01080 command_tick_return
+01C0   0008           01081     return
+                      01082 
+                      01083 ;  Command Module : END
+                      01084 ;
+                      01085 ; ------------------------------------------------------------------------------
                       01086 
-                      01087 ;    ;  Set receiver.
-                      01088 ;    bcf     RCSTA,RX9
-                      01089 ;    bsf     RCSTA,CREN      ; Enable reception.
-                      01090 
-01DB                  01091 txloop
+                      01087 
+                      01088 ; ------------------------------------------------------------------------------
+                      01089 ;
+                      01090 ;  Start up the main program.  Call the initialization routines for each of the
+                      01091 ;  modules.
                       01092 
-                      01093     ;  See if we are ready to send data.
-Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
-01DB   1C9E           01094     btfss   TXSTA,TRMT
-01DC   2???           01095     goto    txloop
-                      01096 
-                      01097     ;  Write data to the tx reg.
-01DD   3055           01098     movlw   0x55
-Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
-01DE   009A           01099     movwf   TXREG
-                      01100 
-01DF   2???           01101     goto    txloop
+01C1                  01093 boot
+                      01094 
+                      01095     ;  Initialize the system components.
+01C1   2???           01096     call    system_init
+01C2   2???           01097     call    timer_init
+01C3   2???           01098     call    uart_init
+01C4   2???           01099     call    button_init
+01C5   2???           01100     call    bat_init
+01C6   2???           01101     call    command_init
                       01102 
-                      01103 ; End of main program.
-                      01104 ;
-                      01105 ; ------------------------------------------------------------------------------
-                      01106 
-00FA 0803             01107         end
-MPASM  5.47  /USERS/MICHAEL/DEVELOPMENT/DOORB   10-20-2013  15:22:49         PAGE 24
+                      01103     ;  Start the system.
+01C7   2???           01104     call    system_start
+MPASM  5.47  /USERS/MICHAEL/DEVELOPMENT/DOORB   10-30-2013  19:59:15         PAGE 23
+
+
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+                      01105 
+                      01106     ;  Start of user code.
+01C8                  01107 main
+                      01108 
+                      01109     ; If we are running here, we should hit the watch dog timer.  Everything
+                      01110     ; is probably fine.
+01C8   0064           01111     clrwdt
+                      01112 
+                      01113     ;  Run timer tick code if tick flag is set.
+01C9   0020           01114     banksel timerflags
+01CA   1C32           01115     btfss   timerflags,timer_flag_tick
+01CB   2???           01116     goto    skip_tick_code
+                      01117 
+                      01118     ;  Run tick code here.
+                      01119 
+                      01120     ;  Only run button tick every 4 ticks.  This is for button bounce.
+01CC   0830           01121     movfw   timerlo
+01CD   3903           01122     andlw   0x03
+01CE   1903           01123     btfsc   STATUS,Z
+01CF   2???           01124     call    button_tick
+                      01125 
+01D0   2???           01126     call    uart_tx_tick
+01D1   2???           01127     call    uart_rx_tick
+01D2   2???           01128     call    command_tick
+                      01129 
+01D3   0020           01130     banksel timerflags
+01D4   1032           01131     bcf     timerflags,timer_flag_tick
+                      01132 
+01D5   2???           01133     goto    main
+                      01134 
+01D6                  01135 skip_tick_code
+01D6   2???           01136     goto    main
+                      01137 ;    goto    main
+01D7   3010           01138     movlw   0x10
+01D8   2???           01139     call    bat_set_port
+                      01140 
+01D9                  01141 loop
+01D9   2???           01142     call    bat_ready
+01DA   1D03           01143     btfss   STATUS,Z
+01DB   2???           01144     goto    main
+                      01145 
+01DC   3055           01146     movlw   0x55
+01DD   2???           01147     call    bat_send
+                      01148     ;  See if the transmitter data register is empty.
+                      01149 ;    banksel PIR1
+                      01150 ;    btfss   PIR1,TXIF       ;  Skip if ready for a character.
+                      01151 ;    goto    main
+                      01152 ;
+                      01153 ;    banksel TXREG           ;  Send a test character.
+                      01154 ;    movlw   0x95
+                      01155 ;    movwf   TXREG
+01DE   2???           01156     goto    main
+                      01157 
+MPASM  5.47  /USERS/MICHAEL/DEVELOPMENT/DOORB   10-30-2013  19:59:15         PAGE 24
+
+
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+                      01158 
+                      01159 ; End of main program.
+                      01160 ;
+                      01161 ; ------------------------------------------------------------------------------
+                      01162 
+00FA 0803             01163         end
+MPASM  5.47  /USERS/MICHAEL/DEVELOPMENT/DOORB   10-30-2013  19:59:15         PAGE 25
 
 
 SYMBOL TABLE
@@ -1392,6 +1412,7 @@ ANSELA                            0000018C
 ANSELB                            0000018D
 ANSELC                            0000018E
 APFCON                            0000011D
+BAT_TX_QUEUE_SIZE                 00000004
 BAUDCON                           0000019F
 BCL1IE                            00000003
 BCL1IF                            00000003
@@ -1405,13 +1426,13 @@ BKA13                             00000005
 BKA14                             00000006
 BKA2                              00000002
 BKA3                              00000003
-BKA4                              00000004
-MPASM  5.47  /USERS/MICHAEL/DEVELOPMENT/DOORB   10-20-2013  15:22:49         PAGE 25
+MPASM  5.47  /USERS/MICHAEL/DEVELOPMENT/DOORB   10-30-2013  19:59:15         PAGE 26
 
 
 SYMBOL TABLE
   LABEL                             VALUE 
 
+BKA4                              00000004
 BKA5                              00000005
 BKA6                              00000006
 BKA7                              00000007
@@ -1464,13 +1485,13 @@ C2OUT                             00000006
 C2PCH0                            00000004
 C2PCH1                            00000005
 C2POL                             00000004
-C2SP                              00000002
-MPASM  5.47  /USERS/MICHAEL/DEVELOPMENT/DOORB   10-20-2013  15:22:49         PAGE 26
+MPASM  5.47  /USERS/MICHAEL/DEVELOPMENT/DOORB   10-30-2013  19:59:15         PAGE 27
 
 
 SYMBOL TABLE
   LABEL                             VALUE 
 
+C2SP                              00000002
 C2SYNC                            00000000
 CDAFVR0                           00000002
 CDAFVR1                           00000003
@@ -1523,13 +1544,13 @@ CLC3GLS3                          00000F27
 CLC3IE                            00000002
 CLC3IF                            00000002
 CLC3POL                           00000F21
-CLC3SEL0                          00000F22
-MPASM  5.47  /USERS/MICHAEL/DEVELOPMENT/DOORB   10-20-2013  15:22:49         PAGE 27
+MPASM  5.47  /USERS/MICHAEL/DEVELOPMENT/DOORB   10-30-2013  19:59:15         PAGE 28
 
 
 SYMBOL TABLE
   LABEL                             VALUE 
 
+CLC3SEL0                          00000F22
 CLC3SEL1                          00000F23
 CLC4CON                           00000F28
 CLC4GLS0                          00000F2C
@@ -1582,13 +1603,13 @@ D3S0                              00000000
 D3S1                              00000001
 D3S2                              00000002
 D3T                               00000005
-D4N                               00000006
-MPASM  5.47  /USERS/MICHAEL/DEVELOPMENT/DOORB   10-20-2013  15:22:49         PAGE 28
+MPASM  5.47  /USERS/MICHAEL/DEVELOPMENT/DOORB   10-30-2013  19:59:15         PAGE 29
 
 
 SYMBOL TABLE
   LABEL                             VALUE 
 
+D4N                               00000006
 D4S0                              00000004
 D4S1                              00000005
 D4S2                              00000006
@@ -1629,6 +1650,9 @@ DEVSEL0                           00000000
 DEVSEL1                           00000001
 DEVSEL2                           00000002
 DHEN                              00000000
+DOORBELL_FRONT_MASK               00000001
+DOORBELL_GUEST_MASK               00000004
+DOORBELL_SIDE_MASK                00000002
 D_NOT_A                           00000005
 EEPGD                             00000007
 F                                 00000001
@@ -1638,16 +1662,16 @@ FREEZ                             00000006
 FSR0                              00000004
 FSR0H                             00000005
 FSR0H_SHAD                        00000FE9
-FSR0L                             00000004
-FSR0L_SHAD                        00000FE8
-FSR1                              00000006
-FSR1H                             00000007
-MPASM  5.47  /USERS/MICHAEL/DEVELOPMENT/DOORB   10-20-2013  15:22:49         PAGE 29
+MPASM  5.47  /USERS/MICHAEL/DEVELOPMENT/DOORB   10-30-2013  19:59:15         PAGE 30
 
 
 SYMBOL TABLE
   LABEL                             VALUE 
 
+FSR0L                             00000004
+FSR0L_SHAD                        00000FE8
+FSR1                              00000006
+FSR1H                             00000007
 FSR1H_SHAD                        00000FEB
 FSR1L                             00000006
 FSR1L_SHAD                        00000FEA
@@ -1697,16 +1721,16 @@ ICDBK0L                           00000F9D
 ICDCON0                           00000F8D
 ICDINSTH                          00000F97
 ICDINSTL                          00000F96
-ICDIO                             00000F8C
-ICDSTAT                           00000F91
-INBUG                             00000007
-INDF0                             00000000
-MPASM  5.47  /USERS/MICHAEL/DEVELOPMENT/DOORB   10-20-2013  15:22:49         PAGE 30
+MPASM  5.47  /USERS/MICHAEL/DEVELOPMENT/DOORB   10-30-2013  19:59:15         PAGE 31
 
 
 SYMBOL TABLE
   LABEL                             VALUE 
 
+ICDIO                             00000F8C
+ICDSTAT                           00000F91
+INBUG                             00000007
+INDF0                             00000000
 INDF1                             00000001
 INTCON                            0000000B
 INTE                              00000004
@@ -1756,16 +1780,16 @@ IRCF2                             00000005
 IRCF3                             00000006
 LATA                              0000010C
 LATA0                             00000000
-LATA1                             00000001
-LATA2                             00000002
-LATA4                             00000004
-LATA5                             00000005
-MPASM  5.47  /USERS/MICHAEL/DEVELOPMENT/DOORB   10-20-2013  15:22:49         PAGE 31
+MPASM  5.47  /USERS/MICHAEL/DEVELOPMENT/DOORB   10-30-2013  19:59:15         PAGE 32
 
 
 SYMBOL TABLE
   LABEL                             VALUE 
 
+LATA1                             00000001
+LATA2                             00000002
+LATA4                             00000004
+LATA5                             00000005
 LATB                              0000010D
 LATB4                             00000004
 LATB5                             00000005
@@ -1815,16 +1839,16 @@ LC1G2D4T                          00000007
 LC1G2POL                          00000001
 LC1G3D1N                          00000000
 LC1G3D1T                          00000001
-LC1G3D2N                          00000002
-LC1G3D2T                          00000003
-LC1G3D3N                          00000004
-LC1G3D3T                          00000005
-MPASM  5.47  /USERS/MICHAEL/DEVELOPMENT/DOORB   10-20-2013  15:22:49         PAGE 32
+MPASM  5.47  /USERS/MICHAEL/DEVELOPMENT/DOORB   10-30-2013  19:59:15         PAGE 33
 
 
 SYMBOL TABLE
   LABEL                             VALUE 
 
+LC1G3D2N                          00000002
+LC1G3D2T                          00000003
+LC1G3D3N                          00000004
+LC1G3D3T                          00000005
 LC1G3D4N                          00000006
 LC1G3D4T                          00000007
 LC1G3POL                          00000002
@@ -1874,16 +1898,16 @@ LC2G2D2T                          00000003
 LC2G2D3N                          00000004
 LC2G2D3T                          00000005
 LC2G2D4N                          00000006
-LC2G2D4T                          00000007
-LC2G2POL                          00000001
-LC2G3D1N                          00000000
-LC2G3D1T                          00000001
-MPASM  5.47  /USERS/MICHAEL/DEVELOPMENT/DOORB   10-20-2013  15:22:49         PAGE 33
+MPASM  5.47  /USERS/MICHAEL/DEVELOPMENT/DOORB   10-30-2013  19:59:15         PAGE 34
 
 
 SYMBOL TABLE
   LABEL                             VALUE 
 
+LC2G2D4T                          00000007
+LC2G2POL                          00000001
+LC2G3D1N                          00000000
+LC2G3D1T                          00000001
 LC2G3D2N                          00000002
 LC2G3D2T                          00000003
 LC2G3D3N                          00000004
@@ -1933,16 +1957,16 @@ LC3G1POL                          00000000
 LC3G2D1N                          00000000
 LC3G2D1T                          00000001
 LC3G2D2N                          00000002
-LC3G2D2T                          00000003
-LC3G2D3N                          00000004
-LC3G2D3T                          00000005
-LC3G2D4N                          00000006
-MPASM  5.47  /USERS/MICHAEL/DEVELOPMENT/DOORB   10-20-2013  15:22:49         PAGE 34
+MPASM  5.47  /USERS/MICHAEL/DEVELOPMENT/DOORB   10-30-2013  19:59:15         PAGE 35
 
 
 SYMBOL TABLE
   LABEL                             VALUE 
 
+LC3G2D2T                          00000003
+LC3G2D3N                          00000004
+LC3G2D3T                          00000005
+LC3G2D4N                          00000006
 LC3G2D4T                          00000007
 LC3G2POL                          00000001
 LC3G3D1N                          00000000
@@ -1992,16 +2016,16 @@ LC4G1D3N                          00000004
 LC4G1D3T                          00000005
 LC4G1D4N                          00000006
 LC4G1D4T                          00000007
-LC4G1POL                          00000000
-LC4G2D1N                          00000000
-LC4G2D1T                          00000001
-LC4G2D2N                          00000002
-MPASM  5.47  /USERS/MICHAEL/DEVELOPMENT/DOORB   10-20-2013  15:22:49         PAGE 35
+MPASM  5.47  /USERS/MICHAEL/DEVELOPMENT/DOORB   10-30-2013  19:59:15         PAGE 36
 
 
 SYMBOL TABLE
   LABEL                             VALUE 
 
+LC4G1POL                          00000000
+LC4G2D1N                          00000000
+LC4G2D1T                          00000001
+LC4G2D2N                          00000002
 LC4G2D2T                          00000003
 LC4G2D3N                          00000004
 LC4G2D3T                          00000005
@@ -2051,16 +2075,16 @@ MCLC2OUT                          00000001
 MCLC3OUT                          00000002
 MCLC4OUT                          00000003
 N1CKS0                            00000000
-N1CKS1                            00000001
-N1EN                              00000007
-N1OE                              00000006
-N1OUT                             00000005
-MPASM  5.47  /USERS/MICHAEL/DEVELOPMENT/DOORB   10-20-2013  15:22:49         PAGE 36
+MPASM  5.47  /USERS/MICHAEL/DEVELOPMENT/DOORB   10-30-2013  19:59:15         PAGE 37
 
 
 SYMBOL TABLE
   LABEL                             VALUE 
 
+N1CKS1                            00000001
+N1EN                              00000007
+N1OE                              00000006
+N1OUT                             00000005
 N1PFM                             00000000
 N1POL                             00000004
 N1PWS0                            00000005
@@ -2110,16 +2134,16 @@ NCO1INC5                          00000005
 NCO1INC6                          00000006
 NCO1INC7                          00000007
 NCO1INC8                          00000000
-NCO1INC9                          00000001
-NCO1INCH                          0000049C
-NCO1INCL                          0000049B
-NCO1INCU                          0000049D
-MPASM  5.47  /USERS/MICHAEL/DEVELOPMENT/DOORB   10-20-2013  15:22:49         PAGE 37
+MPASM  5.47  /USERS/MICHAEL/DEVELOPMENT/DOORB   10-30-2013  19:59:15         PAGE 38
 
 
 SYMBOL TABLE
   LABEL                             VALUE 
 
+NCO1INC9                          00000001
+NCO1INCH                          0000049C
+NCO1INCL                          0000049B
+NCO1INCU                          0000049D
 NCO1SEL                           00000000
 NCOSEL                            00000000
 NOT_BOR                           00000000
@@ -2169,16 +2193,16 @@ PORT_ICDDAT                       00000007
 PR2                               0000001B
 PS0                               00000000
 PS1                               00000001
-PS2                               00000002
-PSA                               00000003
-PWM1CON                           00000613
-PWM1CON0                          00000613
-MPASM  5.47  /USERS/MICHAEL/DEVELOPMENT/DOORB   10-20-2013  15:22:49         PAGE 38
+MPASM  5.47  /USERS/MICHAEL/DEVELOPMENT/DOORB   10-30-2013  19:59:15         PAGE 39
 
 
 SYMBOL TABLE
   LABEL                             VALUE 
 
+PS2                               00000002
+PSA                               00000003
+PWM1CON                           00000613
+PWM1CON0                          00000613
 PWM1DCH                           00000612
 PWM1DCH0                          00000000
 PWM1DCH1                          00000001
@@ -2228,16 +2252,16 @@ PWM3DCL                           00000617
 PWM3DCL0                          00000006
 PWM3DCL1                          00000007
 PWM3EN                            00000007
-PWM3OE                            00000006
-PWM3OUT                           00000005
-PWM3POL                           00000004
-PWM4CON                           0000061C
-MPASM  5.47  /USERS/MICHAEL/DEVELOPMENT/DOORB   10-20-2013  15:22:49         PAGE 39
+MPASM  5.47  /USERS/MICHAEL/DEVELOPMENT/DOORB   10-30-2013  19:59:15         PAGE 40
 
 
 SYMBOL TABLE
   LABEL                             VALUE 
 
+PWM3OE                            00000006
+PWM3OUT                           00000005
+PWM3POL                           00000004
+PWM4CON                           0000061C
 PWM4CON0                          0000061C
 PWM4DCH                           0000061B
 PWM4DCH0                          00000000
@@ -2287,19 +2311,20 @@ RX9D                              00000000
 R_NOT_W                           00000002
 Reserved                          00000000
 S                                 00000003
-SBCDE                             00000002
-SBOREN                            00000007
-SCIE                              00000005
-SCKP                              00000004
-MPASM  5.47  /USERS/MICHAEL/DEVELOPMENT/DOORB   10-20-2013  15:22:49         PAGE 40
+MPASM  5.47  /USERS/MICHAEL/DEVELOPMENT/DOORB   10-30-2013  19:59:15         PAGE 41
 
 
 SYMBOL TABLE
   LABEL                             VALUE 
 
+SBCDE                             00000002
+SBOREN                            00000007
+SCIE                              00000005
+SCKP                              00000004
 SCS0                              00000000
 SCS1                              00000001
 SDAHT                             00000003
+SEEBURG_SELECT_MASK               00000008
 SEN                               00000000
 SENDB                             00000003
 SMP                               00000007
@@ -2345,17 +2370,17 @@ T0IE                              00000005
 T0IF                              00000002
 T0SE                              00000004
 T1CKPS0                           00000004
-T1CKPS1                           00000005
-T1CON                             00000018
-T1GCON                            00000019
-T1GGO_NOT_DONE                    00000003
-T1GPOL                            00000006
-MPASM  5.47  /USERS/MICHAEL/DEVELOPMENT/DOORB   10-20-2013  15:22:49         PAGE 41
+MPASM  5.47  /USERS/MICHAEL/DEVELOPMENT/DOORB   10-30-2013  19:59:15         PAGE 42
 
 
 SYMBOL TABLE
   LABEL                             VALUE 
 
+T1CKPS1                           00000005
+T1CON                             00000018
+T1GCON                            00000019
+T1GGO_NOT_DONE                    00000003
+T1GPOL                            00000006
 T1GSEL                            00000003
 T1GSPM                            00000004
 T1GSS0                            00000000
@@ -2404,17 +2429,17 @@ TRISA3                            00000003
 TRISA4                            00000004
 TRISA5                            00000005
 TRISB                             0000008D
-TRISB4                            00000004
-TRISB5                            00000005
-TRISB6                            00000006
-TRISB7                            00000007
-TRISC                             0000008E
-MPASM  5.47  /USERS/MICHAEL/DEVELOPMENT/DOORB   10-20-2013  15:22:49         PAGE 42
+MPASM  5.47  /USERS/MICHAEL/DEVELOPMENT/DOORB   10-30-2013  19:59:15         PAGE 43
 
 
 SYMBOL TABLE
   LABEL                             VALUE 
 
+TRISB4                            00000004
+TRISB5                            00000005
+TRISB6                            00000006
+TRISB7                            00000007
+TRISC                             0000008E
 TRISC0                            00000000
 TRISC1                            00000001
 TRISC2                            00000002
@@ -2438,9 +2463,11 @@ TXIF                              00000004
 TXREG                             0000019A
 TXSTA                             0000019E
 UA                                00000001
+UART_RX_QUEUE_SIZE                00000004
 UART_STATE_BREAK                  00000000
 UART_STATE_DATA                   00000002
 UART_STATE_START                  00000001
+UART_TX_QUEUE_SIZE                00000010
 USRHLTF                           00000001
 VREGCON                           00000197
 VREGPM                            00000001
@@ -2461,6 +2488,12 @@ WPUA4                             00000004
 WPUA5                             00000005
 WPUB                              0000020D
 WPUB4                             00000004
+MPASM  5.47  /USERS/MICHAEL/DEVELOPMENT/DOORB   10-30-2013  19:59:15         PAGE 44
+
+
+SYMBOL TABLE
+  LABEL                             VALUE 
+
 WPUB5                             00000005
 WPUB6                             00000006
 WPUB7                             00000007
@@ -2468,12 +2501,6 @@ WR                                00000001
 WREG                              00000009
 WREG_SHAD                         00000FE5
 WREN                              00000002
-MPASM  5.47  /USERS/MICHAEL/DEVELOPMENT/DOORB   10-20-2013  15:22:49         PAGE 43
-
-
-SYMBOL TABLE
-  LABEL                             VALUE 
-
 WRERR                             00000003
 WUE                               00000001
 Z                                 00000002
@@ -2520,90 +2547,104 @@ _STVREN_ON                        0000FFFF
 _WDTE_NSLEEP                      0000FFF7
 _WDTE_OFF                         0000FFE7
 _WDTE_ON                          0000FFFF
+MPASM  5.47  /USERS/MICHAEL/DEVELOPMENT/DOORB   10-30-2013  19:59:15         PAGE 45
+
+
+SYMBOL TABLE
+  LABEL                             VALUE 
+
 _WDTE_SWDTEN                      0000FFEF
 _WRT_ALL                          0000FFFC
 _WRT_BOOT                         0000FFFE
 _WRT_HALF                         0000FFFD
 _WRT_OFF                          0000FFFF
 __16F1508                         00000001
-boot                              000001BC
-MPASM  5.47  /USERS/MICHAEL/DEVELOPMENT/DOORB   10-20-2013  15:22:49         PAGE 44
+bat_bit_count                     00000026
+bat_data                          00000027
+bat_init                          000000BF
+bat_port                          00000028
+bat_ready                         000000CF
+bat_send                          00000117
+bat_send_0                        00000103
+bat_send_0_alert                  00000107
+bat_send_0_seeburg                0000010A
+bat_send_1                        0000010D
+bat_send_1_alert                  00000111
+bat_send_1_seeburg                00000114
+bat_set_port                      000000CC
+bat_tick                          000000D2
+bat_tick_send_data                000000F8
+bat_tick_send_start               000000E8
+bat_tick_send_stop                000000F1
+bat_tick_set                      000000FB
+bat_tx_head                       00000029
+bat_tx_queue                      0000002C
+bat_tx_send_byte                  0000011C
+bat_tx_send_error                 0000012E
+bat_tx_tail                       0000002A
+bat_tx_temp                       0000002B
+boot                              000001C1
+button_counter                    00000035
+button_current                    00000034
+button_init                       00000162
+button_shift                      00000036
+button_state                      00000033
+button_temp                       00000037
+button_tick                       0000016D
+button_tick_loop                  0000017F
+button_tick_loop_inc              00000198
+button_tick_return                0000019F
+channel_address_table             00000020
+command_alert_mp3                 000001B2
+command_init                      000001A0
+command_seeburg_mp3               000001B9
+command_tick                      000001A1
+command_tick_return               000001C0
+debug                             00000195
+debugset                          00000194
+loop                              000001D9
+main                              000001C8
+ram                               00000020
+skip_tick_code                    000001D6
+MPASM  5.47  /USERS/MICHAEL/DEVELOPMENT/DOORB   10-30-2013  19:59:15         PAGE 46
 
 
 SYMBOL TABLE
   LABEL                             VALUE 
 
-channel_address_table             00000020
-comparator_init                   00000094
-comparator_isr                    000000B3
-delay                             00000020
-dmx0                              00000025
-dmx1                              00000026
-dmx2                              00000027
-dmx3                              00000028
-dmx_0_high                        00000071
-dmx_0_low                         00000070
-dmx_1_high                        00000073
-dmx_1_low                         00000072
-dmx_2_high                        00000075
-dmx_2_low                         00000074
-dmx_3_high                        00000077
-dmx_3_low                         00000076
-dmx_init                          00000057
-level                             00000029
-main                              000001CB
-main2                             000001CD
-mainlp                            000001D0
-pwm_init                          00000192
-pwm_off                           00000199
-pwm_set_channels                  000001A3
-pwm_set_channels_ok               000001A7
-pwm_sync                          0000019F
-ram                               00000020
-system_halt                       00000056
+system_halt                       00000055
 system_init                       00000040
 system_isr                        00000053
-system_isr_return                 00000055
+system_isr_return                 00000054
 system_start                      0000004F
-timer_init                        00000154
-timer_isr                         0000016B
-timer_isr_return                  00000184
-timer_isr_setpwm                  00000183
-timer_reload_high                 000000FD
-timer_reload_low                  000000EF
-timer_zero                        00000185
-txloop                            000001DB
-uart_count_high                   00000023
-uart_count_low                    00000022
-uart_data                         00000024
-uart_init                         000000BC
-uart_isr                          000000D0
-uart_isr_return                   00000153
-uart_state                        00000021
-uart_state_break                  000000D8
-uart_state_break_discard          000000E2
-uart_state_check_data             00000100
-uart_state_check_start            000000E4
-uart_state_data                   00000105
-uart_state_data_dmx1              00000117
-MPASM  5.47  /USERS/MICHAEL/DEVELOPMENT/DOORB   10-20-2013  15:22:49         PAGE 45
-
-
-SYMBOL TABLE
-  LABEL                             VALUE 
-
-uart_state_data_dmx2              00000122
-uart_state_data_dmx3              0000012D
-uart_state_data_frame             0000014B
-uart_state_data_inc               00000138
-uart_state_data_noinc             0000013C
-uart_state_error                  0000014F
-uart_state_start                  000000E9
-uart_state_start_data             000000EE
-uart_state_start_detected         000000F5
+timer_flag_tick                   00000000
+timer_init                        00000130
+timer_isr                         0000014A
+timer_isr_return                  00000161
+timer_reload_high                 000000DF
+timer_reload_low                  00000072
+timerflags                        00000032
+timerhi                           00000031
+timerlo                           00000030
+uart_init                         00000056
+uart_rx_error                     0000008D
+uart_rx_head                      00000023
+uart_rx_queue                     00000060
+uart_rx_tail                      00000024
+uart_rx_temp                      00000025
+uart_rx_tick                      00000072
+uart_rx_tick_return               00000094
+uart_tx_head                      00000020
+uart_tx_queue                     00000070
+uart_tx_send_byte                 000000AB
+uart_tx_send_error                000000BD
+uart_tx_tail                      00000021
+uart_tx_temp                      00000022
+uart_tx_tick                      00000095
+uart_tx_tick_return               000000AA
 
 Errors   :     0
 Warnings :     0 reported,     0 suppressed
-Messages :    95 reported,     0 suppressed
+Messages :    53 reported,     0 suppressed
 
 
